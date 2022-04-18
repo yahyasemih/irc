@@ -9,8 +9,15 @@ enum command_type {
 	NICK,
 	USER,
 	PASS,
+	OPER,
 	DIE,
-	INVALID_CMD // TODO: complete list of commands
+	PRIVMSG,
+	JOIN,
+	QUIT,
+	PART,
+	AWAY,
+	TOPIC,
+	INVALID_CMD // TODO: complete list of commands, add operator commands
 };
 
 class command_parser {
@@ -24,6 +31,7 @@ public:
 
 	const std::string &get_prefix() const;
 	const std::string &get_cmd() const;
+	std::string get_cmd_lowercase() const;
 	const std::vector<std::string> &get_args() const;
 };
 
@@ -45,22 +53,28 @@ command_parser::command_parser(const std::string &str) {
 	while (str[idx] != ' ' && str[idx] != '\0') {
 		++idx;
 	}
+	cmd = str.substr(cmd_start, idx - cmd_start);
+	while (str[idx] == ' ') {
+		++idx;
+	}
 	if (str[idx] == '\0') {
 		return;
 	}
-	cmd = str.substr(cmd_start, idx - cmd_start);
-	std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::tolower);
-	if (str[idx] == '\0') {
-		return;
+	while (str[idx] != '\0' && str[idx] != ':') {
+		while (str[idx] == ' ') {
+			++idx;
+		}
+		size_t start_arg = idx;
+		while (str[idx] != ' ' && str[idx] != '\0') {
+			++idx;
+		}
+		args.push_back(str.substr(start_arg, idx - start_arg));
+		while (str[idx] == ' ') {
+			++idx;
+		}
 	}
 	if (str[idx] == ':') {
-		args.push_back(str.substr(idx));
-	} else {
-		std::stringstream stream(str.substr(idx));
-		std::string arg;
-		while (stream >> arg) {
-			args.push_back(arg);
-		}
+		args.push_back(str.substr(idx + 1));
 	}
 }
 
@@ -73,6 +87,12 @@ const std::string &command_parser::get_prefix() const {
 
 const std::string &command_parser::get_cmd() const {
 	return cmd;
+}
+
+std::string command_parser::get_cmd_lowercase() const {
+	std::string lower;
+	std::transform(cmd.begin(), cmd.end(), std::back_inserter(lower), ::tolower);
+	return lower;
 }
 
 const std::vector<std::string> &command_parser::get_args() const {
