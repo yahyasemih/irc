@@ -14,10 +14,15 @@
 #include <string>
 
 #include "client.hpp"
+#include "command_parser.hpp"
 
 class server {
 private:
 	static const int BUFFER_SIZE = 100;
+	typedef std::unordered_map<std::string, command_type> command_map;
+	typedef int (server::*command_function)(const command_parser &cmd, client &c);
+	static const command_map str_to_cmd;
+	static const command_function command_functions[5];
 	std::string password;
 	std::vector<pollfd> pollfds;
 	std::unordered_map<int, client> clients;
@@ -28,12 +33,38 @@ private:
 	void accept_client();
 	void receive_from_client(client &c);
 	void clear_disconnected_clients(const std::vector<int> &disconnected);
-	int handle_command(const std::string &line, client &c);
+	int handle_command(const std::string &line, client &c, std::string &reply);
+
+	int nick_cmd(const command_parser &cmd, client &c);
+	int user_cmd(const command_parser &cmd, client &c);
+	int pass_cmd(const command_parser &cmd, client &c);
+	int die_cmd(const command_parser &cmd, client &c);
+
+	static command_map init_map();
 public:
 	server(int port, std::string password);
 	~server();
 
 	void start();
+};
+
+server::command_map server::init_map() {
+	command_map map;
+	map.insert(std::make_pair("nick", NICK));
+	map.insert(std::make_pair("user", USER));
+	map.insert(std::make_pair("pass", PASS));
+	map.insert(std::make_pair("die", DIE));
+	return map;
+}
+
+const server::command_map server::str_to_cmd = init_map();
+
+const server::command_function server::command_functions[5] = {
+	&server::nick_cmd,
+	&server::user_cmd,
+	&server::pass_cmd,
+	&server::die_cmd,
+	nullptr
 };
 
 server::server(int port, std::string password) {
@@ -89,23 +120,17 @@ void server::start() {
 						client &c = it->second;
 						receive_from_client(c);
 						while (c.has_command()) {
-							std::cout << "command is : " << c.get_command() << std::endl;
-							std::cout << "remain stream is : " << c.get_stream().str() << std::endl;
-							std::cout << "sending to " << c.get_fd() << std::endl;
-							// send(c.get_fd(), ":irc.example.net 001 yahya :Welcome to the Internet Relay Network yahya!~yahya@localhost\r\n"
-							// 		":irc.example.net 002 yahya :Your host is irc.example.net, running version ngircd-26.1 (x86_64/apple/darwin18.7.0)\r\n"
-							// 		":irc.example.net 003 yahya :This server has been started Mon Mar 21 2022 at 21:25:26 (+01)\r\n"
-							// 		":irc.example.net 004 yahya irc.example.net ngircd-26.1 abBcCFiIoqrRswx abehiIklmMnoOPqQrRstvVz\r\n"
-							// 		":irc.example.net 005 yahya RFC2812 IRCD=ngIRCd CHARSET=UTF-8 CASEMAPPING=ascii PREFIX=(qaohv)~&@%+ CHANTYPES=#&+ CHANMODES=beI,k,l,imMnOPQRstVz CHANLIMIT=#&+:10 :are supported on this server\r\n"
-							// 		":irc.example.net 005 yahya CHANNELLEN=50 NICKLEN=9 TOPICLEN=490 AWAYLEN=127 KICKLEN=400 MODES=5 MAXLIST=beI:50 EXCEPTS=e INVEX=I PENALTY FNC :are supported on this server\r\n"
-							// 		":irc.example.net 251 yahya :There are 1 users and 0 services on 1 servers\r\n"
-							// 		":irc.example.net 254 yahya 1 :channels formed\r\n"
-							// 		":irc.example.net 255 yahya :I have 1 users, 0 services and 0 servers\r\n"
-							// 		":irc.example.net 265 yahya 1 1 :Current local users: 1, Max: 1\r\n"
-							// 		":irc.example.net 266 yahya 1 1 :Current global users: 1, Max: 1\r\n"
-							// 		":irc.example.net 250 yahya :Highest connection count: 1 (2 connections received)\r\n"
-							// 		":irc.example.net 422 yahya :MOTD file is missing", 1208, 0);
-							//c.get_stream().clear();
+							std::string reply;
+							int reply_code = handle_command(c.get_command(), c, reply);
+							if (reply_code == 400) {
+								std::string final_reply = "ERROR :" + reply + "\r\n";
+								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
+								c.get_stream().clear();
+								close(c.get_fd());
+								disconnected.push_back(i);
+								clients.erase(pf.fd);
+								std::cout << "client disconnected" << std::endl;
+							}
 						}
 					}
 				}
@@ -151,44 +176,95 @@ void server::clear_disconnected_clients(const std::vector<int> &disconnected) {
 	}
 }
 
-int server::handle_command(const std::string &line, client &c) {
-	std::stringstream stream(line);
-	std::string cmd, prefix;
-	std::vector<std::string> args;
-	stream >> cmd;
-	if (cmd[0] == ':')
-		stream >> cmd; // ignoring prefix
-	if (cmd == "PASS") {
-		if (c.connection_already_registered())
-			return 462;
-		std::string p, r;
-		stream >> p >> r;
-		if (p[0] == ':')
-			p = p.substr(1);
-		if (p.empty() || !r.empty())
-			return 461;
-		if (p != password)
-			return 464;
-		c.set_pass(p);
-	} else if (cmd == "NICK") {
-		std::string nname, r;
-		stream >> nname >> r;
-		if (nname[0] == ':')
-			nname = nname.substr(1);
-		if (nname.empty() || !r.empty());
-			return 461;
-		if (!c.get_username().empty()) {
-			if (c.get_pass() != password)
-				return 464;
-		} else {
-			if (!c.get_nickname().empty()) {
-				std::cout << "User "<< c.get_username() << " changed nick " << c.get_nickname() << " -> " << nname
-						<< std::endl;
-			}
-			c.set_nickname(nname);
-		}
-	} else if (cmd == "USER") {
+int server::handle_command(const std::string &line, client &c, std::string &reply) {
+	if (line.size() > 510) {
+		reply = ":Request too long";
+		return 400; // ERROR
+	}
+	command_parser cmd_parser(line);
+	if (c.is_connected() && !cmd_parser.get_prefix().empty() && cmd_parser.get_prefix().substr(1) != c.get_nickname()) {
+		reply = ":Invalid prefix \"" + cmd_parser.get_prefix().substr(1) + "\"";
+		return 400; // ERROR
+	}
+	command_map::const_iterator it = str_to_cmd.find(cmd_parser.get_cmd());
+	command_type cmd_type = it == str_to_cmd.cend() ? INVALID_CMD : it->second;
+	if (cmd_type == INVALID_CMD) {
+		reply = cmd_parser.get_cmd() + " :Unknown command";
+		return 421; // :Unknown command
+	} else {
+		return (this->*(command_functions[cmd_type]))(cmd_parser, c);
 	}
 }
 
+int server::pass_cmd(const command_parser &cmd, client &c) {
+	if (c.connection_already_registered()) {
+		return 462;
+	} else if (cmd.get_args().size() != 1) {
+		return 461;
+	} else {
+		c.set_pass(cmd.get_args().at(0));
+		return 0;
+	}
+}
+
+int server::nick_cmd(const command_parser &cmd, client &c) {
+	if (cmd.get_args().size() != 1) {
+		return 461;
+	}
+	std::string nickname = cmd.get_args().at(0);
+	if (!c.get_username().empty()) {
+		if (c.get_pass() != password) {
+			return 464;
+		} else {
+			c.set_nickname(nickname);
+			c.set_connected(true);
+			return 0;
+		}
+	} else {
+		c.set_nickname(nickname);
+		c.set_connected(true);
+		return 0;
+	}
+}
+
+int server::user_cmd(const command_parser &cmd, client &c) {
+	// TODO: fix chaining/checking of checking errors (cnx already/not registered cases)
+	if (c.connection_not_registered()) {
+		return 451;
+	} else if (c.connection_already_registered()) {
+		return 462;
+	} else if (cmd.get_args().size() != 1) {
+		return 461;
+	}
+	std::string username = cmd.get_args().at(0);
+	if (!c.get_nickname().empty()) {
+		if (c.get_pass() != password) {
+			return 464;
+		} else {
+			c.set_username(username);
+			c.set_connected(true);
+			return 0;
+		}
+	} else {
+		c.set_username(username);
+		c.set_connected(true);
+		return 0;
+	}
+}
+
+int server::die_cmd(const command_parser &cmd, client &c) {
+	if (c.connection_not_registered()) {
+		return 451;
+	} else if (cmd.get_args().size() > 1) {
+		return 461;
+	} else if (!c.is_oper()) {
+		return 481; // Permission denied
+	} else {
+		// TODO: broadcast notice + args[0] if args[0] exists
+		// TODO: broadcast notice of connection stats
+		// TODO: set reply as ":Server going down"
+		return 400; // ERROR
+	}
+	return 0;
+}
 #endif

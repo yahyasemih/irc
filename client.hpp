@@ -12,7 +12,8 @@ private:
 	std::string nickname;
 	std::string username;
 	std::string pass;
-	bool is_oper;
+	bool oper;
+	bool connected;
 	std::stringstream stream;
 public:
 	client(int socket_fd);
@@ -25,6 +26,7 @@ public:
 	bool has_command() const;
 	std::string get_command();
 	void set_oper(bool is_oper);
+	bool is_oper() const;
 	void set_pass(const std::string &p);
 	const std::string &get_pass();
 	void set_username(const std::string &uname);
@@ -33,12 +35,15 @@ public:
 	const std::string &get_nickname() const;
 
 	bool connection_already_registered() const;
+	bool connection_not_registered() const;
+	bool is_connected() const;
+	void set_connected(bool connected);
 };
 
-client::client(int socket_fd) : fd(socket_fd), is_oper(false) {
+client::client(int socket_fd) : fd(socket_fd), oper(false), connected(false) {
 }
 
-client::client(const client &o) : fd(o.fd), is_oper(o.is_oper) {
+client::client(const client &o) : fd(o.fd), oper(o.oper), connected(o.connected) {
 }
 
 client::~client() {
@@ -46,7 +51,6 @@ client::~client() {
 
 void client::receive(std::string str) {
 	stream << str;
-	std::cout << "stream contain '" << stream.str() << "'" << std::endl;
 }
 
 int client::get_fd() const {
@@ -68,8 +72,12 @@ std::string client::get_command() {
 	return command;
 }
 
-void client::set_oper(bool is_oper) {
-	this->is_oper = is_oper;
+void client::set_oper(bool oper) {
+	this->oper = oper;
+}
+
+bool client::is_oper() const {
+	return oper;
 }
 
 void client::set_pass(const std::string &p) {
@@ -82,6 +90,18 @@ const std::string &client::get_pass() {
 
 bool client::connection_already_registered() const {
 	return !pass.empty() || !nickname.empty() || !username.empty();
+}
+
+bool client::connection_not_registered() const {
+	return nickname.empty() && !username.empty();
+}
+
+bool client::is_connected() const {
+	return connected;
+}
+
+void client::set_connected(bool connected) {
+	this->connected = connected;
 }
 
 void client::set_username(const std::string &uname) {
