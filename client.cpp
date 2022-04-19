@@ -113,3 +113,14 @@ const std::string &client::get_pass() {
 std::string client::to_string() const {
 	return nickname + "!~" + username + "@" + host;
 }
+
+void client::set_away_msg(const std::string &msg) {
+	away_msg = msg;
+}
+const std::string &client::get_away_msg() const {
+	return away_msg;
+}
+
+bool client::is_away() const {
+	return !away_msg.empty();
+}

@@ -15,6 +15,7 @@ private:
 	std::string realname;
 	std::string pass;
 	std::string host;
+	std::string away_msg;
 	bool oper;
 	bool connected;
 	std::stringstream stream;
@@ -43,6 +44,9 @@ public:
 	bool connection_not_registered() const;
 	bool is_connected() const;
 	void set_connected(bool connected);
+	void set_away_msg(const std::string &msg);
+	const std::string &get_away_msg() const;
+	bool is_away() const;
 
 	std::string to_string() const;
 };

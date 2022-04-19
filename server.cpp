@@ -119,7 +119,7 @@ void server::start() {
 								disconnected.push_back(i);
 								clients.erase(pf.fd);
 								std::cout << "client disconnected" << std::endl;
-							} else if (reply_code >= 400 && reply_code <= 599) {
+							} else if (reply_code > 0 && reply_code <= 599) {
 								std::string final_reply = config.get_server_name() + " " + std::to_string(reply_code);
 								final_reply += " " + c.get_nickname() + " " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
@@ -378,7 +378,12 @@ int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply
 			if (channels_it != channels.end()) {
 				channels_it->second.send_message(msg, &c);
 			} else {
-				send(nicks_it->second, msg.c_str(), msg.size(), 0);
+				client &c2 = clients.find(nicks_it->second)->second;
+				send(c2.get_fd(), msg.c_str(), msg.size(), 0);
+				if (c2.is_away()) {
+					reply = receiver + " :" + c2.get_away_msg();
+					return 301;
+				}
 			}
 			return 0;
 		}
@@ -479,7 +484,19 @@ int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::away_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
+	if (cmd.get_args().size() > 1) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
+	} else if (cmd.get_args().empty()) {
+		c.set_away_msg("");
+		reply = ":You are no longer marked as being away";
+		return 305;
+	} else {
+		const std::string msg = cmd.get_args().at(0);
+		c.set_away_msg(msg);
+		reply = ":You have been marked as being away";
+		return 306;
+	}
 	return 0;
 }
 
@@ -535,7 +552,7 @@ int server::notice_cmd(const command_parser &cmd, client &c, std::string &reply)
 		std::unordered_map<std::string, int>::iterator nicks_it = nick_to_fd.find(receiver);
 		channel_map::iterator channels_it = channels.find(receiver);
 		if (nicks_it != nick_to_fd.cend() || channels_it != channels.end()) {
-			std::string msg = ":" + c.to_string() + " PRIVMSG " + receiver + " :" + text + "\r\n";
+			std::string msg = ":" + c.to_string() + " NOTICE " + receiver + " :" + text + "\r\n";
 			if (channels_it != channels.end()) {
 				channels_it->second.send_message(msg, &c);
 			} else {
