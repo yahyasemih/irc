@@ -328,8 +328,13 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			return -1;
 		} else {
 			if (c.get_nickname() != nickname) {
+				if (nick_to_fd.find(nickname) != nick_to_fd.end()) {
+					reply = nickname + " :Nickname already in use";
+					return 433;
+				}
 				if (c.is_connected() && !c.get_nickname().empty()) {
-					reply = ":" + c.to_string() + " NICK :" + nickname;
+					reply = ":" + c.to_string() + " NICK :" + nickname + "\r\n";
+					send(c.get_fd(), reply.c_str(), reply.size(), 0);
 				}
 				nick_to_fd.erase(c.get_nickname());
 				c.set_nickname(nickname);
@@ -340,8 +345,13 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		}
 	}
 	if (c.get_nickname() != nickname) {
+		if (nick_to_fd.find(nickname) != nick_to_fd.end()) {
+			reply = nickname + " :Nickname already in use";
+			return 433;
+		}
 		if (c.is_connected() && !c.get_nickname().empty()) {
-			reply = ":" + c.to_string() + " NICK :" + nickname;
+			reply = ":" + c.to_string() + " NICK :" + nickname + "\r\n";
+			send(c.get_fd(), reply.c_str(), reply.size(), 0);
 		}
 		nick_to_fd.erase(c.get_nickname());
 		c.set_nickname(nickname);
