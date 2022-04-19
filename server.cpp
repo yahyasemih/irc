@@ -117,6 +117,7 @@ void server::start() {
 								c.get_stream().clear();
 								close(c.get_fd());
 								disconnected.push_back(i);
+								join_cmd(command_parser("JOIN 0"), c, reply);
 								clients.erase(pf.fd);
 								std::cout << "client disconnected" << std::endl;
 							} else if (reply_code == 400) {
@@ -135,6 +136,8 @@ void server::start() {
 				if (pf.revents & POLLHUP) {
 					if (std::find(disconnected.begin(), disconnected.end(), i) == disconnected.end()) {
 						disconnected.push_back(i);
+						std::string reply;
+						join_cmd(command_parser("JOIN 0"), clients.find(pf.fd)->second, reply);
 						clients.erase(pf.fd);
 						std::cout << "client disconnected" << std::endl;
 					}
@@ -378,7 +381,12 @@ int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply
 		} else {
 			std::string msg = ":" + c.to_string() + " PRIVMSG " + receiver + " :" + text + "\r\n";
 			if (channels_it != channels.end()) {
-				channels_it->second.send_message(msg, &c);
+				if (channels_it->second.is_in_channel(&c)) {
+					channels_it->second.send_message(msg, &c);
+				} else {
+					reply = channels_it->first + " :You are not on that channel";
+					return 442;
+				}
 			} else {
 				client &c2 = clients.find(nicks_it->second)->second;
 				send(c2.get_fd(), msg.c_str(), msg.size(), 0);

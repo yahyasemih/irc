@@ -3,4 +3,3 @@
 - Add file transfert
 - implement missing commands
 - resolve TODOs in files
-- handle quiting channels when client quit server in any sort (close, by command, signal ..)
