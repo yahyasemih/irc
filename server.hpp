@@ -20,13 +20,15 @@
 
 class server {
 private:
-	static const int BUFFER_SIZE = 100;
 	typedef std::unordered_map<std::string, command_type> command_map;
 	typedef std::unordered_map<std::string, channel> channel_map;
 	typedef std::unordered_map<int, client> client_map;
 	typedef int (server::*command_function)(const command_parser &, client &, std::string &);
+
+	static const int BUFFER_SIZE = 100;
 	static const command_map str_to_cmd;
-	static const command_function command_functions[11];
+	static const command_function command_functions[INVALID_CMD];
+
 	std::string password;
 	std::vector<pollfd> pollfds;
 	std::unordered_map<int, client> clients;
@@ -52,6 +54,15 @@ private:
 	int part_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int away_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int topic_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int mode_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int users_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int stats_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int info_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int invite_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int kick_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int names_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int list_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int notice_cmd(const command_parser &cmd, client &c, std::string &reply);
 
 	static command_map init_map();
 public:
@@ -74,14 +85,23 @@ server::command_map server::init_map() {
 	map.insert(std::make_pair("quit", QUIT));
 	map.insert(std::make_pair("part", PART));
 	map.insert(std::make_pair("away", AWAY));
-	map.insert(std::make_pair("topic", AWAY));
+	map.insert(std::make_pair("topic", TOPIC));
+	map.insert(std::make_pair("mode", MODE));
+	map.insert(std::make_pair("users", USERS));
+	map.insert(std::make_pair("stats", STATS));
+	map.insert(std::make_pair("info", INFO));
+	map.insert(std::make_pair("invite", INVITE));
+	map.insert(std::make_pair("kick", KICK));
+	map.insert(std::make_pair("names", NAMES));
+	map.insert(std::make_pair("list", LIST));
+	map.insert(std::make_pair("notice", NOTICE));
 
 	return map;
 }
 
 const server::command_map server::str_to_cmd = init_map();
 
-const server::command_function server::command_functions[11] = {
+const server::command_function server::command_functions[INVALID_CMD] = {
 	&server::nick_cmd,
 	&server::user_cmd,
 	&server::pass_cmd,
@@ -92,7 +112,16 @@ const server::command_function server::command_functions[11] = {
 	&server::quit_cmd,
 	&server::part_cmd,
 	&server::away_cmd,
-	&server::topic_cmd
+	&server::topic_cmd,
+	&server::mode_cmd,
+	&server::users_cmd,
+	&server::stats_cmd,
+	&server::info_cmd,
+	&server::invite_cmd,
+	&server::kick_cmd,
+	&server::names_cmd,
+	&server::list_cmd,
+	&server::notice_cmd
 };
 
 server::server(int port, std::string password, std::string config_file) {
@@ -144,7 +173,7 @@ void server::start() {
 			for (int i = 1; i < pollfds.size(); ++i) {
 				pollfd &pf  = pollfds[i];
 				if (pf.revents & POLLIN) {
-					std::unordered_map<int, client>::iterator it = clients.find(pf.fd);
+					client_map::iterator it = clients.find(pf.fd);
 					if (it != clients.end()) {
 						client &c = it->second;
 						receive_from_client(c);
@@ -160,7 +189,8 @@ void server::start() {
 								clients.erase(pf.fd);
 								std::cout << "client disconnected" << std::endl;
 							} else if (reply_code >= 400 && reply_code <= 599) {
-								std::string final_reply = "ERROR :" + reply + "\r\n";
+								std::string final_reply = config.get_server_name() + " " + std::to_string(reply_code);
+								final_reply += " " + c.get_nickname() + " " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
 							} else {
 								std::cout << "code: " << reply_code << ", reply: '" << reply << "'" << std::endl;
@@ -170,9 +200,11 @@ void server::start() {
 					}
 				}
 				if (pf.revents & POLLHUP) {
-					disconnected.push_back(i);
-					clients.erase(pf.fd);
-					std::cout << "client disconnected" << std::endl;
+					if (std::find(disconnected.begin(), disconnected.end(), i) == disconnected.end()) {
+						disconnected.push_back(i);
+						clients.erase(pf.fd);
+						std::cout << "client disconnected" << std::endl;
+					}
 				}
 			}
 			if (!disconnected.empty()) {
@@ -257,7 +289,16 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			reply = ":Password incorrect";
 			return -1;
 		} else {
+			if (c.get_nickname() != nickname) {
+				if (c.is_connected() && !c.get_nickname().empty()) {
+					reply = ":" + c.get_nickname() + " NICK :" + nickname;
+				}
+				nick_to_fd.erase(c.get_nickname());
+				c.set_nickname(nickname);
+				nick_to_fd.insert(std::make_pair(nickname, c.get_fd()));
+			}
 			c.set_connected(true);
+			return 0;
 		}
 	}
 	if (c.get_nickname() != nickname) {
@@ -277,12 +318,13 @@ int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 451;
 	} else if (c.connection_already_registered()) {
 		return 462;
-	} else if (cmd.get_args().size() != 3) {
+	} else if (cmd.get_args().size() != 4) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
 	std::string username = cmd.get_args().at(0);
-	std::string realname = cmd.get_args().at(2);
+	std::string mode = cmd.get_args().at(1);
+	std::string realname = cmd.get_args().at(3);
 	if (!c.get_nickname().empty()) {
 		if (c.get_pass() != password) {
 			reply = ":Password incorrect";
@@ -422,8 +464,8 @@ int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 461;
 	}
 	const std::string &channel_name = cmd.get_args().at(0);
-	channel_map::const_iterator it = channels.find(channel_name);
-	if (it == channels.cend()) {
+	channel_map::iterator it = channels.find(channel_name);
+	if (it == channels.end()) {
 		reply = channel_name + " :No such channel";
 		return 403;
 	} else if (!it->second.is_in_channel(&c)) {
@@ -431,18 +473,65 @@ int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 442;
 	} else {
 		std::string msg = cmd.get_args().size() == 1 ? "" : cmd.get_args().at(1);
-		msg = ":" + c.get_nickname() + " PART " + channel_name + ":" + msg;
-		it->second.send_message(reply, nullptr);
+		msg = ":" + c.get_nickname() + " PART " + channel_name + ":" + msg + "\r\n";
+		it->second.send_message(msg, nullptr);
+		it->second.remove_client(&c);
 		return 0; // No reply to send, already sent by channel
 	}
-	return 0;
 }
 
 int server::away_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
 	return 0;
 }
 
 int server::topic_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
+	return 0;
+}
+
+int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
+	return 0;
+}
+
+int server::users_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
+	return 0;
+}
+
+int server::stats_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
+	return 0;
+}
+
+int server::info_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
+	return 0;
+}
+
+int server::invite_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
+	return 0;
+}
+
+int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
+	return 0;
+}
+
+int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
+	return 0;
+}
+
+int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
+	return 0;
+}
+
+int server::notice_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
 	return 0;
 }
 

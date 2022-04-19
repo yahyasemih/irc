@@ -17,6 +17,15 @@ enum command_type {
 	PART,
 	AWAY,
 	TOPIC,
+	MODE,
+	USERS,
+	STATS,
+	INFO,
+	INVITE,
+	KICK,
+	NAMES,
+	LIST,
+	NOTICE,
 	INVALID_CMD // TODO: complete list of commands, add operator commands
 };
 
