@@ -467,6 +467,22 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
+	if (cmd.get_args().size() == 1 && cmd.get_args().at(0) == "0") {
+		for (channel_map::iterator it = channels.begin(); it != channels.end();) {
+			if (it->second.is_in_channel(&c)) {
+				std::string msg = ":" + c.to_string() + " PART " + it->first + " :" + c.get_nickname() + "\r\n";
+				it->second.send_message(msg, nullptr);
+				it->second.remove_client(&c);
+			}
+			if (it->second.empty()) {
+				channel_map::iterator to_erase = it++;
+				channels.erase(to_erase);
+			} else {
+				it++;
+			}
+		}
+		return 0; // No reply to send, already sent by channel
+	}
 	std::string chnl = cmd.get_args().at(0);
 	if (channels.find(chnl) == channels.end()) {
 		channel ch = cmd.get_args().size() == 1 ? channel() : channel(cmd.get_args().at(1));
@@ -495,13 +511,19 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 461;
 	}
 	reply = cmd.get_args().empty() ? ":Closing connection" : ":" + cmd.get_args().at(0);
-	for (channel_map::iterator it = channels.begin(); it != channels.end(); ++it) {
+	for (channel_map::iterator it = channels.begin(); it != channels.end();) {
 		if (it->second.is_in_channel(&c)) {
 			std::string msg = ":" + c.to_string() + " QUIT :";
 			msg += cmd.get_args().empty() ? c.get_nickname() : cmd.get_args().at(0);
 			// TODO: send also stats notice
 			it->second.send_message(msg, &c);
 			it->second.remove_client(&c);
+			if (it->second.empty()) {
+				channel_map::iterator to_erase = it++;
+				channels.erase(to_erase);
+			} else {
+				it++;
+			}
 		}
 	}
 	return -1; // FATAL ERROR
@@ -522,9 +544,12 @@ int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 442;
 	} else {
 		std::string msg = cmd.get_args().size() == 1 ? "" : cmd.get_args().at(1);
-		msg = ":" + c.to_string() + " PART " + channel_name + ":" + msg + "\r\n";
+		msg = ":" + c.to_string() + " PART " + channel_name + " :" + msg + "\r\n";
 		it->second.send_message(msg, nullptr);
 		it->second.remove_client(&c);
+		if (it->second.empty()) {
+			channels.erase(it);
+		}
 		return 0; // No reply to send, already sent by channel
 	}
 }

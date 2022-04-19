@@ -19,6 +19,8 @@ public:
 	void add_client(client *c);
 	void remove_client(client *c);
 	bool is_in_channel(client *c) const;
+	size_t size() const;
+	bool empty() const;
 };
 
 channel::channel() {
@@ -50,6 +52,14 @@ void channel::remove_client(client *c) {
 
 bool channel::is_in_channel(client *c) const {
 	return users.find(c) != users.end();
+}
+
+size_t channel::size() const {
+	return users.size();
+}
+
+bool channel::empty() const {
+	return users.empty();
 }
 
 #endif
