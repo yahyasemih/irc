@@ -221,7 +221,7 @@ int server::handle_command(const std::string &line, client &c, std::string &repl
 	command_type cmd_type = it == str_to_cmd.cend() ? INVALID_CMD : it->second;
 	if (cmd_type == INVALID_CMD) {
 		reply = cmd_parser.get_cmd() + " :Unknown command";
-		return 421; // :Unknown command
+		return 421;
 	} else {
 		return (this->*(command_functions[cmd_type]))(cmd_parser, c, reply);
 	}
@@ -229,6 +229,7 @@ int server::handle_command(const std::string &line, client &c, std::string &repl
 
 int server::pass_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	if (c.connection_already_registered()) {
+		reply = ":Unauthorized command (already registered)";
 		return 462;
 	} else if (cmd.get_args().size() != 1) {
 		reply = cmd.get_cmd() + " :Syntax error\r\n";
@@ -286,8 +287,10 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO: fix chaining/checking of checking errors (cnx already/not registered cases)
 	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
 		return 451;
 	} else if (c.connection_already_registered()) {
+		reply = ":Unauthorized command (already registered)";
 		return 462;
 	} else if (cmd.get_args().size() != 4) {
 		reply = cmd.get_cmd() + " :Syntax error";
@@ -315,12 +318,14 @@ int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
 
 int server::die_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
 		return 451;
 	} else if (cmd.get_args().size() > 1) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	} else if (!c.is_oper()) {
-		return 481; // Permission denied
+		reply = ":Permission Denied";
+		return 481;
 	} else {
 		// TODO: broadcast notice + args[0] if args[0] exists
 		// TODO: broadcast notice of connection stats
@@ -332,7 +337,7 @@ int server::die_cmd(const command_parser &cmd, client &c, std::string &reply) {
 
 int server::oper_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	if (c.connection_not_registered()) {
-		reply = ":Connection not registered";
+		reply = ":You have not registered";
 		return 451;
 	} else if (cmd.get_args().size() != 2) {
 		reply = cmd.get_cmd() + " :Syntax error";
@@ -342,7 +347,7 @@ int server::oper_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		const std::string &pass = cmd.get_args().at(1);
 		server_config::operator_map::const_iterator it = config.get_operators().find(name);
 		if (it == config.get_operators().cend() || it->second != pass) {
-			reply = ":Invalid password";
+			reply = ":Password incorrect";
 			return 464;
 		}
 		reply = "";
