@@ -1,0 +1,6 @@
+- Add Makefile
+- Extract implemetation of classes in separate source code files
+- Add bot
+- Add file transfert
+- implement missing commands
+- ...
