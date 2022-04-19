@@ -125,7 +125,8 @@ void server::start() {
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
 							} else if (reply_code > 0 && reply_code <= 599) {
 								std::string final_reply = config.get_server_name() + " " + std::to_string(reply_code);
-								final_reply += " " + c.get_nickname() + " " + reply + "\r\n";
+								std::string nickname = c.get_nickname().empty() ? "*" : c.get_nickname();
+								final_reply += " " + nickname + " " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
 							} else if (reply_code != 0) {
 								send(c.get_fd(), reply.c_str(), reply.size(), 0);
@@ -249,6 +250,18 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 461;
 	}
 	std::string nickname = cmd.get_args().at(0);
+	if (nickname.empty() || nickname.size() > 9
+			|| (strchr("[]\\`_^{|}", nickname[0]) == nullptr && !isalpha(nickname[0]))) {
+		reply = nickname + " :Erroneous nickname";
+		return 432;
+	} else {
+		for (size_t i = 1; i < nickname.size(); ++i) {
+			if (strchr("[]\\`_^{|}-", nickname[i]) == nullptr && !isalnum(nickname[i])) {
+				reply = nickname + " :Erroneous nickname";
+				return 432;
+			}
+		}
+	}
 	if (!c.get_username().empty()) {
 		if (c.get_pass() != password) {
 			reply = ":Password incorrect";
@@ -431,7 +444,10 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		msg += "\r\n:" + config.get_server_name() + " 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
 		send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	} else {
-		if (!channels[chnl].is_in_channel(&c)) {
+		if (strchr("#+&", chnl[0]) == nullptr || chnl.find(":") != std::string::npos) {
+			reply = chnl + " :No such channel";
+			return 403;
+		} else if (!channels[chnl].is_in_channel(&c)) {
 			channels[chnl].add_client(&c);
 			std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
 			channels[chnl].send_message(msg, nullptr);
