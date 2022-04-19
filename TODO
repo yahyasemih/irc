@@ -4,3 +4,4 @@
 - implement missing commands
 - resolve TODOs in files
 - implement and complete the server_config class
+- fix welcome reply and other replies related to it (stats, global/local users, ...)
