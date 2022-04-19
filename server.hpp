@@ -65,6 +65,7 @@ private:
 	int names_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int list_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int notice_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int ping_cmd(const command_parser &cmd, client &c, std::string &reply);
 
 	static command_map init_map();
 public:
@@ -97,6 +98,7 @@ server::command_map server::init_map() {
 	map.insert(std::make_pair("names", NAMES));
 	map.insert(std::make_pair("list", LIST));
 	map.insert(std::make_pair("notice", NOTICE));
+	map.insert(std::make_pair("ping", PING));
 
 	return map;
 }
@@ -123,7 +125,8 @@ const server::command_function server::command_functions[INVALID_CMD] = {
 	&server::kick_cmd,
 	&server::names_cmd,
 	&server::list_cmd,
-	&server::notice_cmd
+	&server::notice_cmd,
+	&server::ping_cmd
 };
 
 server::server(int port, std::string password, std::string config_file) {
@@ -194,9 +197,11 @@ void server::start() {
 								std::string final_reply = config.get_server_name() + " " + std::to_string(reply_code);
 								final_reply += " " + c.get_nickname() + " " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
-							} else {
+							} else if (reply_code != 0) {
 								std::cout << "code: " << reply_code << ", reply: '" << reply << "'" << std::endl;
 								send(c.get_fd(), reply.c_str(), reply.size(), 0);
+							} else {
+								std::cout << "code: " << reply_code << ", reply: '" << reply << "'" << std::endl;
 							}
 						}
 					}
@@ -553,6 +558,16 @@ int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
 
 int server::notice_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	return 0;
+}
+
+int server::ping_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	if (cmd.get_args().size() != 1) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
+	}
+	std::string msg = ":" + config.get_server_name() + " PONG " + cmd.get_args().at(0) + "\r\n";
+	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	return 0;
 }
 

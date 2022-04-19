@@ -26,6 +26,7 @@ enum command_type {
 	NAMES,
 	LIST,
 	NOTICE,
+	PING,
 	INVALID_CMD // TODO: complete list of commands, add operator commands
 };
 
