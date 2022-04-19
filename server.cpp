@@ -115,7 +115,6 @@ void server::start() {
 								std::string final_reply = "ERROR " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
 								c.get_stream().clear();
-								close(c.get_fd());
 								disconnected.push_back(i);
 								join_cmd(command_parser("JOIN 0"), c, reply);
 								clients.erase(pf.fd);
