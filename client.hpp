@@ -13,11 +13,12 @@ private:
 	std::string username;
 	std::string realname;
 	std::string pass;
+	std::string host;
 	bool oper;
 	bool connected;
 	std::stringstream stream;
 public:
-	client(int socket_fd);
+	client(int socket_fd, const std::string &host);
 	client(const client &o);
 	~client();
 
@@ -41,12 +42,14 @@ public:
 	bool connection_not_registered() const;
 	bool is_connected() const;
 	void set_connected(bool connected);
+
+	std::string to_string() const;
 };
 
-client::client(int socket_fd) : fd(socket_fd), oper(false), connected(false) {
+client::client(int socket_fd, const std::string &host) : host(host), fd(socket_fd), oper(false), connected(false) {
 }
 
-client::client(const client &o) : fd(o.fd), oper(o.oper), connected(o.connected) {
+client::client(const client &o) : host(o.host), fd(o.fd), oper(o.oper), connected(o.connected) {
 }
 
 client::~client() {
@@ -103,7 +106,7 @@ bool client::is_connected() const {
 
 void client::set_connected(bool connected) {
 	if (connected && !this->connected) {
-		std::string msg = ":irc.example.net 001 " + get_nickname() + " :Welcome to the Internet Relay Network " + get_nickname() + "!~" + get_username() + "@localhost\r\n"
+		std::string msg = ":irc.example.net 001 " + get_nickname() + " :Welcome to the Internet Relay Network " + to_string() + "\r\n"
 				":irc.example.net 002 " + get_nickname() + " :Your host is irc.example.net, running version ngircd-26.1 (x86_64/apple/darwin18.7.0)\r\n"
 				":irc.example.net 003 " + get_nickname() + " :This server has been started Mon Mar 21 2022 at 21:25:26 (+01)\r\n"
 				":irc.example.net 004 " + get_nickname() + " irc.example.net ngircd-26.1 abBcCFiIoqrRswx abehiIklmMnoOPqQrRstvVz\r\n"
@@ -151,6 +154,10 @@ void client::set_pass(const std::string &p) {
 
 const std::string &client::get_pass() {
 	return pass;
+}
+
+std::string client::to_string() const {
+	return nickname + "!~" + username + "@" + host;
 }
 
 #endif

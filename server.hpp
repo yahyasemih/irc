@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <poll.h>
 #include <fcntl.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -38,6 +39,7 @@ private:
 	sockaddr_in addr;
 	server_config config;
 
+	void welcome_client(const client &c) const;
 	void accept_client();
 	void receive_from_client(client &c);
 	void clear_disconnected_clients(const std::vector<int> &disconnected);
@@ -214,6 +216,23 @@ void server::start() {
 	}
 }
 
+void server::welcome_client(const client &c) const {
+	std::string msg = ":" + config.get_server_name() + " 001 " + c.get_nickname() + " :Welcome to the Internet Relay Network " + c.to_string() + "\r\n"
+			":" + config.get_server_name() + " 002 " + c.get_nickname() + " :Your host is " + config.get_server_name() + ", running version ngircd-26.1 (x86_64/apple/darwin18.7.0)\r\n"
+			":" + config.get_server_name() + " 003 " + c.get_nickname() + " :This server has been started Mon Mar 21 2022 at 21:25:26 (+01)\r\n"
+			":" + config.get_server_name() + " 004 " + c.get_nickname() + " " + config.get_server_name() + " ngircd-26.1 abBcCFiIoqrRswx abehiIklmMnoOPqQrRstvVz\r\n"
+			":" + config.get_server_name() + " 005 " + c.get_nickname() + " RFC2812 IRCD=ngIRCd CHARSET=UTF-8 CASEMAPPING=ascii PREFIX=(qaohv)~&@%+ CHANTYPES=#&+ CHANMODES=beI,k,l,imMnOPQRstVz CHANLIMIT=#&+:10 :are supported on this server\r\n"
+			":" + config.get_server_name() + " 005 " + c.get_nickname() + " CHANNELLEN=50 NICKLEN=9 TOPICLEN=490 AWAYLEN=127 KICKLEN=400 MODES=5 MAXLIST=beI:50 EXCEPTS=e INVEX=I PENALTY FNC :are supported on this server\r\n"
+			":" + config.get_server_name() + " 251 " + c.get_nickname() + " :There are 1 users and 0 services on 1 servers\r\n"
+			":" + config.get_server_name() + " 254 " + c.get_nickname() + " 1 :channels formed\r\n"
+			":" + config.get_server_name() + " 255 " + c.get_nickname() + " :I have 1 users, 0 services and 0 servers\r\n"
+			":" + config.get_server_name() + " 265 " + c.get_nickname() + " 1 1 :Current local users: 1, Max: 1\r\n"
+			":" + config.get_server_name() + " 266 " + c.get_nickname() + " 1 1 :Current global users: 1, Max: 1\r\n"
+			":" + config.get_server_name() + " 250 " + c.get_nickname() + " :Highest connection count: 1 (2 connections received)\r\n"
+			":" + config.get_server_name() + " 422 " + c.get_nickname() + " :MOTD file is missing\r\n";
+		send(c.get_fd(), msg.c_str(), msg.size(), 0);
+}
+
 void server::accept_client() {
 	int addrlen = sizeof(addr);
 	int new_socket = accept(fd, (sockaddr *)&addr, (socklen_t *)&addrlen);
@@ -223,10 +242,11 @@ void server::accept_client() {
 	} else {
 		fcntl(new_socket, F_SETFL, O_NONBLOCK);
 		pollfd pf;
+		std::string host = inet_ntoa(addr.sin_addr); // TODO: reverse dns
 		pf.fd = new_socket;
 		pf.events = POLLIN;
 		pollfds.push_back(pf);
-		clients.insert(std::make_pair(new_socket, client(new_socket)));
+		clients.insert(std::make_pair(new_socket, client(new_socket, host)));
 	}
 }
 
@@ -291,7 +311,7 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		} else {
 			if (c.get_nickname() != nickname) {
 				if (c.is_connected() && !c.get_nickname().empty()) {
-					reply = ":" + c.get_nickname() + " NICK :" + nickname;
+					reply = ":" + c.to_string() + " NICK :" + nickname;
 				}
 				nick_to_fd.erase(c.get_nickname());
 				c.set_nickname(nickname);
@@ -303,7 +323,7 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	}
 	if (c.get_nickname() != nickname) {
 		if (c.is_connected() && !c.get_nickname().empty()) {
-			reply = ":" + c.get_nickname() + " NICK :" + nickname;
+			reply = ":" + c.to_string() + " NICK :" + nickname;
 		}
 		nick_to_fd.erase(c.get_nickname());
 		c.set_nickname(nickname);
@@ -403,7 +423,7 @@ int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply
 			reply = receiver + " :No such nick or channel name";
 			return 401;
 		} else {
-			std::string msg = ":" + c.get_nickname() + " PRIVMSG " + receiver + " :" + text + "\r\n";
+			std::string msg = ":" + c.to_string() + " PRIVMSG " + receiver + " :" + text + "\r\n";
 			if (channels_it != channels.end()) {
 				channels_it->second.send_message(msg, &c);
 			} else {
@@ -424,14 +444,14 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		channel ch = cmd.get_args().size() == 1 ? channel() : channel(cmd.get_args().at(1));
 		ch.add_client(&c);
 		channels.insert(std::make_pair(chnl, ch));
-		std::string msg = ":" + c.get_nickname() + " JOIN :" + chnl + "\r\n";
+		std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
 		msg += ":irc.1337.ma 353 " + c.get_nickname() + " = " + chnl + ":@" + c.get_nickname() + "\r\n"; // TODO: generate correct messaeg based on users in channel and correct privileges
 		msg += ":irc.1337.ma 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
 		ch.send_message(msg, nullptr);
 	} else {
 		if (!channels[chnl].is_in_channel(&c)) {
 			channels[chnl].add_client(&c);
-			std::string msg = ":" + c.get_nickname() + " JOIN :" + chnl + "\r\n";
+			std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
 			msg += ":irc.1337.ma 353 " + c.get_nickname() + " = " + chnl + ":@" + c.get_nickname() + "\r\n"; // TODO: generate correct messaeg based on users in channel and correct privileges
 			msg += ":irc.1337.ma 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
 			channels[chnl].send_message(msg, nullptr);
@@ -449,8 +469,9 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	reply = cmd.get_args().empty() ? ":Closing connection" : ":" + cmd.get_args().at(0);
 	for (channel_map::iterator it = channels.begin(); it != channels.end(); ++it) {
 		if (it->second.is_in_channel(&c)) {
-			std::string msg = ":" + c.get_nickname() + " QUIT :";
+			std::string msg = ":" + c.to_string() + " QUIT :";
 			msg += cmd.get_args().empty() ? c.get_nickname() : cmd.get_args().at(0);
+			// TODO: send also stats notice
 			it->second.send_message(msg, &c);
 			it->second.remove_client(&c);
 		}
@@ -473,7 +494,7 @@ int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 442;
 	} else {
 		std::string msg = cmd.get_args().size() == 1 ? "" : cmd.get_args().at(1);
-		msg = ":" + c.get_nickname() + " PART " + channel_name + ":" + msg + "\r\n";
+		msg = ":" + c.to_string() + " PART " + channel_name + ":" + msg + "\r\n";
 		it->second.send_message(msg, nullptr);
 		it->second.remove_client(&c);
 		return 0; // No reply to send, already sent by channel
