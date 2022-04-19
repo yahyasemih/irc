@@ -119,15 +119,15 @@ void server::start() {
 								disconnected.push_back(i);
 								clients.erase(pf.fd);
 								std::cout << "client disconnected" << std::endl;
+							} else if (reply_code == 400) {
+								std::string final_reply = "ERROR " + reply + "\r\n";
+								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
 							} else if (reply_code > 0 && reply_code <= 599) {
 								std::string final_reply = config.get_server_name() + " " + std::to_string(reply_code);
 								final_reply += " " + c.get_nickname() + " " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
 							} else if (reply_code != 0) {
-								std::cout << "code: " << reply_code << ", reply: '" << reply << "'" << std::endl;
 								send(c.get_fd(), reply.c_str(), reply.size(), 0);
-							} else {
-								std::cout << "code: " << reply_code << ", reply: '" << reply << "'" << std::endl;
 							}
 						}
 					}
@@ -320,17 +320,14 @@ int server::die_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
-	} else if (cmd.get_args().size() > 1) {
+	} else if (!cmd.get_args().empty()) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	} else if (!c.is_oper()) {
 		reply = ":Permission Denied";
 		return 481;
 	} else {
-		// TODO: broadcast notice + args[0] if args[0] exists
-		// TODO: broadcast notice of connection stats
-		// TODO: set reply as ":Server going down"
-		return 400; // ERROR
+		stop();
 	}
 	return 0;
 }
