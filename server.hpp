@@ -489,16 +489,17 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		ch.add_client(&c);
 		channels.insert(std::make_pair(chnl, ch));
 		std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
-		msg += ":irc.1337.ma 353 " + c.get_nickname() + " = " + chnl + ":@" + c.get_nickname() + "\r\n"; // TODO: generate correct messaeg based on users in channel and correct privileges
-		msg += ":irc.1337.ma 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
-		ch.send_message(msg, nullptr);
+		msg += ":" + config.get_server_name() + " 353 " + c.get_nickname() + " = " + chnl + " :@" + c.get_nickname();
+		msg += "\r\n:" + config.get_server_name() + " 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
+		send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	} else {
 		if (!channels[chnl].is_in_channel(&c)) {
 			channels[chnl].add_client(&c);
 			std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
-			msg += ":irc.1337.ma 353 " + c.get_nickname() + " = " + chnl + ":@" + c.get_nickname() + "\r\n"; // TODO: generate correct messaeg based on users in channel and correct privileges
-			msg += ":irc.1337.ma 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
 			channels[chnl].send_message(msg, nullptr);
+			msg = ":" + config.get_server_name() + " 353 " + c.get_nickname() + " = " + channels[chnl].to_string() + "\r\n";
+			msg += ":" + config.get_server_name() + " 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
+			send(c.get_fd(), msg.c_str(), msg.size(), 0);
 		}
 	}
 
