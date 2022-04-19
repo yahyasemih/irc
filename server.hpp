@@ -38,6 +38,7 @@ private:
 	int fd;
 	sockaddr_in addr;
 	server_config config;
+	bool is_running;
 
 	void welcome_client(const client &c) const;
 	void accept_client();
@@ -73,6 +74,7 @@ public:
 	~server();
 
 	void start();
+	void stop();
 };
 
 server::command_map server::init_map() {
@@ -168,7 +170,8 @@ server::~server() {
 }
 
 void server::start() {
-	while (true) {
+	is_running = true;
+	while (is_running) {
 		int r = poll(pollfds.data(), pollfds.size(), 0);
 		if (r > 0) {
 			if (pollfds[0].revents & POLLRDNORM) {
@@ -218,6 +221,16 @@ void server::start() {
 				clear_disconnected_clients(disconnected);
 			}
 		}
+	}
+}
+
+void server::stop() {
+	is_running = false;
+	std::cout << "\rClosing server" << std::endl;
+	for (int i = 0; i < pollfds.size(); ++i){
+		std::string msg = "ERROR :Server going down\r\n";
+		send(pollfds[i].fd, msg.c_str(), msg.size(), 0);
+		// TODO: if pd is in clients map then send notice (maybe)
 	}
 }
 
