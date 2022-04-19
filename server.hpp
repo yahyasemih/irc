@@ -570,7 +570,21 @@ int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::notice_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
+	if (cmd.get_args().size() == 2) {
+		const std::string &receiver = cmd.get_args().at(0);
+		const std::string &text = cmd.get_args().at(1);
+		std::unordered_map<std::string, int>::iterator nicks_it = nick_to_fd.find(receiver);
+		channel_map::iterator channels_it = channels.find(receiver);
+		if (nicks_it != nick_to_fd.cend() || channels_it != channels.end()) {
+			std::string msg = ":" + c.to_string() + " PRIVMSG " + receiver + " :" + text + "\r\n";
+			if (channels_it != channels.end()) {
+				channels_it->second.send_message(msg, &c);
+			} else {
+				send(nicks_it->second, msg.c_str(), msg.size(), 0);
+			}
+			return 0;
+		}
+	}
 	return 0;
 }
 
