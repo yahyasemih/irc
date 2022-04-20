@@ -5,10 +5,11 @@
 
 server *s_ptr = nullptr;
 
-void signal_handler(int sig) {
+void signal_handler(int) {
 	if (s_ptr != nullptr) {
 		s_ptr->stop();
 	}
+	exit(0);
 }
 
 int main(int argc, char *argv[]) {

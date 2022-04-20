@@ -101,7 +101,7 @@ void server::start() {
 				accept_client();
 			}
 			std::vector<int> disconnected;
-			for (int i = 1; i < pollfds.size(); ++i) {
+			for (size_t i = 1; i < pollfds.size(); ++i) {
 				pollfd &pf  = pollfds[i];
 				if (pf.revents & POLLIN) {
 					client_map::iterator it = clients.find(pf.fd);
@@ -153,7 +153,7 @@ void server::start() {
 void server::stop() {
 	is_running = false;
 	std::cout << "\rClosing server" << std::endl;
-	for (int i = 0; i < pollfds.size(); ++i){
+	for (size_t i = 0; i < pollfds.size(); ++i){
 		std::string msg = "ERROR :Server going down\r\n";
 		send(pollfds[i].fd, msg.c_str(), msg.size(), 0);
 		// TODO: if pd is in clients map then send notice (maybe)
@@ -202,7 +202,7 @@ void server::receive_from_client(client &c) {
 }
 
 void server::clear_disconnected_clients(const std::vector<int> &disconnected) {
-	for (int i = 0; i < disconnected.size(); ++i) {
+	for (size_t i = 0; i < disconnected.size(); ++i) {
 		pollfds.erase(pollfds.begin() + disconnected[i]);
 	}
 }
@@ -527,50 +527,88 @@ int server::away_cmd(const command_parser &cmd, client &c, std::string &reply) {
 
 int server::topic_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	(void)cmd;
+	(void)c;
+	(void)reply;
 	return 0;
 }
 
 int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	(void)cmd;
+	(void)c;
+	(void)reply;
 	return 0;
 }
 
 int server::users_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	(void)cmd;
+	(void)c;
+	(void)reply;
 	return 0;
 }
 
 int server::stats_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	(void)cmd;
+	(void)c;
+	(void)reply;
 	return 0;
 }
 
 int server::info_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	(void)cmd;
+	(void)c;
+	(void)reply;
 	return 0;
 }
 
 int server::invite_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	(void)cmd;
+	(void)c;
+	(void)reply;
 	return 0;
 }
 
 int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	(void)cmd;
+	(void)c;
+	(void)reply;
 	return 0;
 }
 
 int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	(void)cmd;
+	(void)c;
+	(void)reply;
 	return 0;
 }
 
 int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	(void)cmd;
+	(void)c;
+	(void)reply;
 	return 0;
 }
 
 int server::notice_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	//the variable 'reply' is not used
+	(void)reply;
 	if (cmd.get_args().size() == 2) {
 		const std::string &receiver = cmd.get_args().at(0);
 		const std::string &text = cmd.get_args().at(1);

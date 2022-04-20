@@ -1,9 +1,9 @@
 #include "client.hpp"
 
-client::client(int socket_fd, const std::string &host) : host(host), fd(socket_fd), oper(false), connected(false) {
+client::client(int socket_fd, const std::string &host) : fd(socket_fd), host(host), oper(false), connected(false) {
 }
 
-client::client(const client &o) : host(o.host), fd(o.fd), oper(o.oper), connected(o.connected) {
+client::client(const client &o) : fd(o.fd), host(o.host), oper(o.oper), connected(o.connected) {
 }
 
 client::~client() {
