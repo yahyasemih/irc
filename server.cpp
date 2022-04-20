@@ -470,7 +470,7 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	for (channel_map::iterator it = channels.begin(); it != channels.end();) {
 		if (it->second.is_in_channel(&c)) {
 			std::string msg = ":" + c.to_string() + " QUIT :";
-			msg += cmd.get_args().empty() ? c.get_nickname() : cmd.get_args().at(0);
+			msg += cmd.get_args().empty() ? c.get_nickname() : cmd.get_args().at(0) + "\r\n";
 			// TODO: send also stats notice
 			it->second.send_message(msg, &c);
 			it->second.remove_client(&c);
@@ -608,9 +608,7 @@ int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	return 0;
 }
 
-int server::notice_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	//the variable 'reply' is not used
-	(void)reply;
+int server::notice_cmd(const command_parser &cmd, client &c, std::string &) {
 	if (cmd.get_args().size() == 2) {
 		const std::string &receiver = cmd.get_args().at(0);
 		const std::string &text = cmd.get_args().at(1);
