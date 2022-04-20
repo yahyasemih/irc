@@ -1,6 +1,6 @@
 #include "server_config.hpp"
 
-server_config::server_config() : server_name(":irc.1337.ma"), server_info("This an IRC server made in 1337 school") {
+server_config::server_config() : server_name("irc.1337.ma"), server_info("This an IRC server made in 1337 school") {
 }
 
 server_config::server_config(const std::string &config_file) {
