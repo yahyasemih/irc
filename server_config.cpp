@@ -5,6 +5,8 @@ server_config::server_config() : server_name("irc.1337.ma"), server_info("This a
 
 server_config::server_config(const std::string &config_file) {
 	//TODO: parse config file
+	//this hack to mute flags MUST BE DELETE AFTER Implementing the function
+	(void)config_file;
 }
 
 server_config::~server_config() {
