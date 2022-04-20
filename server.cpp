@@ -119,6 +119,7 @@ void server::start() {
 								c.get_stream().clear();
 								disconnected.push_back(i);
 								join_cmd(command_parser("JOIN 0"), c, reply);
+								nick_to_fd.erase(c.get_nickname());
 								clients.erase(pf.fd);
 								std::cout << "client disconnected" << std::endl;
 							} else if (reply_code == 400) {
@@ -140,6 +141,7 @@ void server::start() {
 						disconnected.push_back(i);
 						std::string reply;
 						join_cmd(command_parser("JOIN 0"), clients.find(pf.fd)->second, reply);
+						nick_to_fd.erase(clients.find(pf.fd)->second.get_nickname());
 						clients.erase(pf.fd);
 						std::cout << "client disconnected" << std::endl;
 					}
