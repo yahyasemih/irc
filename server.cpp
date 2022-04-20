@@ -123,7 +123,7 @@ void server::start() {
 								std::string final_reply = "ERROR " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
 							} else if (reply_code > 0 && reply_code <= 599) {
-								std::string final_reply = config.get_server_name() + " " + std::to_string(reply_code);
+								std::string final_reply = ":" + config.get_server_name() + " " + std::to_string(reply_code);
 								std::string nickname = c.get_nickname().empty() ? "*" : c.get_nickname();
 								final_reply += " " + nickname + " " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);

@@ -27,6 +27,9 @@ void channel::add_client(client *c) {
 }
 
 void channel::remove_client(client *c) {
+	if (owner == c) {
+		owner = nullptr;
+	}
 	users.erase(c);
 }
 
