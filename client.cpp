@@ -116,6 +116,11 @@ std::string client::to_string() const {
 
 void client::set_away_msg(const std::string &msg) {
 	away_msg = msg;
+	if (msg.empty()) {
+		remove_mode('a');
+	} else {
+		add_mode('a');
+	}
 }
 const std::string &client::get_away_msg() const {
 	return away_msg;
@@ -123,4 +128,28 @@ const std::string &client::get_away_msg() const {
 
 bool client::is_away() const {
 	return !away_msg.empty();
+}
+
+std::string client::get_mode() const {
+	std::string result = "+";
+	for (std::unordered_set<char>::const_iterator it = mode.cbegin(); it != mode.cend(); ++it) {
+		result += *it;
+	}
+	return result;
+}
+
+bool client::has_mode(char c) const {
+	return mode.find(c) != mode.end();
+}
+
+void client::add_mode(char c) {
+	if (!has_mode(c)) {
+		mode.insert(c);
+	}
+}
+
+void client::remove_mode(char c) {
+	if (has_mode(c)) {
+		mode.erase(c);
+	}
 }

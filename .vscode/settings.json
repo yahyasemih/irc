@@ -64,6 +64,7 @@
 		"map": "cpp",
 		"deque": "cpp",
 		"regex": "cpp",
-		"set": "cpp"
+		"set": "cpp",
+		"unordered_set": "cpp"
 	}
 }

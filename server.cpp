@@ -559,11 +559,74 @@ int server::topic_cmd(const command_parser &cmd, client &c, std::string &reply) 
 }
 
 int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
-	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
-	(void)cmd;
-	(void)c;
-	(void)reply;
+	// TODO: add channel modes, refactor this function into two parts: user_mode_cmd and channel_mode_cmd
+	if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
+	}
+	const std::string &nickname = cmd.get_args().at(0);
+	if (nick_to_fd.find(nickname) == nick_to_fd.end() && channels.find(nickname) == channels.end()) {
+		reply = nickname + " :No such nick or channel name";
+		return 401;
+	}
+	if (nickname != c.get_nickname()) {
+		reply = ":Can't set/get mode for other users";
+		return 502;
+	}
+	if (cmd.get_args().size() == 1) {
+		reply = c.get_mode();
+		return 221;
+	} else {
+		const std::string &mode = cmd.get_args().at(1);
+		std::string msg;
+		std::string result_mode;
+		if (mode[0] == '-' || mode[0] == '+') {
+			for (size_t i = 1; i < mode.size(); ++i) {
+				if (strchr("oO", mode[i]) != nullptr) {
+					if (c.is_oper() || c.has_mode(mode[i])) {
+						if (mode[0] == '-') {
+							if (c.has_mode(mode[i])) {
+								result_mode += mode[i];
+								c.remove_mode(mode[i]);
+							}
+						} else {
+							if (!c.has_mode(mode[i])) {
+								result_mode += mode[i];
+								c.add_mode(mode[i]);
+							} else {
+								msg += ":" + config.get_server_name() + " 481 " + nickname + " :Permission denied\r\n";
+							}
+						}
+					} else {
+						if (mode[0] == '+') {
+							msg += ":" + config.get_server_name() + " 481 " + nickname + " :Permission denied\r\n";
+						}
+					}
+				} else if (strchr("aiwrs", mode[i]) != nullptr) {
+					if (mode[0] == '-') {
+						if (c.has_mode(mode[i])) {
+							result_mode += mode[i];
+							c.remove_mode(mode[i]);
+						}
+					} else {
+						if (!c.has_mode(mode[i])) {
+							result_mode += mode[i];
+							c.add_mode(mode[i]);
+						}
+					}
+				} else {
+					msg += ":" + config.get_server_name() + " 501 " + nickname + " :Unknown mode \"" + mode[i] + "\"\r\n";
+				}
+			}
+		} else {
+			reply = "Unknown mode";
+			return 501;
+		}
+		if (!result_mode.empty()) {
+			msg += ":" + c.to_string() + " MODE " + nickname + " :" + mode[0] + result_mode + "\r\n";
+		}
+		send(c.get_fd(), msg.c_str(), msg.size(), 0);
+	}
 	return 0;
 }
 

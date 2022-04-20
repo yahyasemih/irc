@@ -4,8 +4,9 @@
 #include <poll.h>
 #include <sys/socket.h>
 
-#include <sstream>
 #include <iostream>
+#include <sstream>
+#include <unordered_set>
 
 class client {
 private:
@@ -16,6 +17,7 @@ private:
 	std::string pass;
 	std::string host;
 	std::string away_msg;
+	std::unordered_set<char> mode;
 	bool oper;
 	bool connected;
 	std::stringstream stream;
@@ -49,6 +51,10 @@ public:
 	bool is_away() const;
 
 	std::string to_string() const;
+	std::string get_mode() const;
+	bool has_mode(char c) const;
+	void add_mode(char c);
+	void remove_mode(char c);
 };
 
 #endif
