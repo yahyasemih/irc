@@ -419,11 +419,11 @@ int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply
 		} else {
 			std::string msg = ":" + c.to_string() + " PRIVMSG " + receiver + " :" + text + "\r\n";
 			if (channels_it != channels.end()) {
-				if (channels_it->second.is_in_channel(&c)) {
+				if (channels_it->second.can_speak(&c)) {
 					channels_it->second.send_message(msg, &c);
 				} else {
-					reply = channels_it->first + " :You are not on that channel";
-					return 442;
+					reply = channels_it->first + " :Cannot send to channel";
+					return 404;
 				}
 			} else {
 				client &c2 = clients.find(nicks_it->second)->second;
@@ -473,6 +473,14 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		names_cmd(command_parser("NAMES " + chnl), c, msg);
 	} else {
 		if (!channels[chnl].is_in_channel(&c)) {
+			if (!channels[chnl].can_join(&c)) {
+				reply = chnl + " :Cannot join channel (+i) -- Invited users only";
+				return 473;
+			} else if (channels[chnl].size() == channels[chnl].get_limit()) {
+				reply = chnl + " :Cannot join channel (+l) -- Channel is full, try later";
+				return 471;
+			}
+			channels[chnl].remove_invitation(&c);
 			channels[chnl].add_client(&c);
 			std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
 			channels[chnl].send_message(msg, nullptr);
@@ -550,59 +558,50 @@ int server::away_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::topic_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
-	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
-	(void)cmd;
-	(void)c;
-	(void)reply;
-	return 0;
-}
-
-int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO: add channel modes, refactor this function into two parts: user_mode_cmd and channel_mode_cmd
 	if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
-	}
-	const std::string &nickname = cmd.get_args().at(0);
-	if (nick_to_fd.find(nickname) == nick_to_fd.end() && channels.find(nickname) == channels.end()) {
-		reply = nickname + " :No such nick or channel name";
-		return 401;
-	}
-	if (nickname != c.get_nickname()) {
-		reply = ":Can't set/get mode for other users";
-		return 502;
-	}
-	if (cmd.get_args().size() == 1) {
-		reply = c.get_mode();
-		return 221;
 	} else {
-		const std::string &mode = cmd.get_args().at(1);
-		std::string msg;
-		std::string result_mode;
-		if (mode[0] == '-' || mode[0] == '+') {
-			for (size_t i = 1; i < mode.size(); ++i) {
-				if (strchr("oO", mode[i]) != nullptr) {
-					if (c.is_oper() || c.has_mode(mode[i])) {
-						if (mode[0] == '-') {
-							if (c.has_mode(mode[i])) {
-								result_mode += mode[i];
-								c.remove_mode(mode[i]);
-							}
-						} else {
-							if (!c.has_mode(mode[i])) {
-								result_mode += mode[i];
-								c.add_mode(mode[i]);
-							} else {
-								msg += ":" + config.get_server_name() + " 481 " + nickname + " :Permission denied\r\n";
-							}
-						}
-					} else {
-						if (mode[0] == '+') {
-							msg += ":" + config.get_server_name() + " 481 " + nickname + " :Permission denied\r\n";
-						}
-					}
-				} else if (strchr("aiwrs", mode[i]) != nullptr) {
+		std::string topic = cmd.get_args().at(1);
+		const std::string chnl = cmd.get_args().at(0);
+		if (channels.find(chnl) == channels.end()) {
+			reply = chnl + " :No such chnl";
+			return 403;
+		} else {
+			channel &ch = channels[chnl];
+			if (cmd.get_args().size() == 1) {
+				if (ch.get_topic().empty()) {
+					reply = chnl + " :No topic is set";
+					return 331;
+				} else {
+					reply = chnl + " :" + ch.get_topic();
+					return 332;
+				}
+			} else {
+				if (ch.can_set_topic(&c)) {
+					ch.set_topic(topic);
+					std::string msg = ":" + c.to_string() + " TOPIC " + chnl + " :" + topic + "\r\n";
+					ch.send_message(msg, nullptr);
+				} else {
+					reply = chnl + " :You are not channel operator";
+					return 482;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+int server::user_mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	const std::string &target = cmd.get_args().at(0);
+	const std::string &mode = cmd.get_args().at(1);
+	std::string msg;
+	std::string result_mode;
+
+	if (mode[0] == '-' || mode[0] == '+') {
+		for (size_t i = 1; i < mode.size(); ++i) {
+			if (strchr("oO", mode[i]) != nullptr) {
+				if (c.is_oper() || c.has_mode(mode[i])) {
 					if (mode[0] == '-') {
 						if (c.has_mode(mode[i])) {
 							result_mode += mode[i];
@@ -612,20 +611,75 @@ int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
 						if (!c.has_mode(mode[i])) {
 							result_mode += mode[i];
 							c.add_mode(mode[i]);
+						} else {
+							msg += ":" + config.get_server_name() + " 481 " + target + " :Permission denied\r\n";
 						}
 					}
 				} else {
-					msg += ":" + config.get_server_name() + " 501 " + nickname + " :Unknown mode \"" + mode[i] + "\"\r\n";
+					if (mode[0] == '+') {
+						msg += ":" + config.get_server_name() + " 481 " + target + " :Permission denied\r\n";
+					}
 				}
+			} else if (strchr("aiwrs", mode[i]) != nullptr) {
+				if (mode[0] == '-') {
+					if (c.has_mode(mode[i])) {
+						result_mode += mode[i];
+						c.remove_mode(mode[i]);
+					}
+				} else {
+					if (!c.has_mode(mode[i])) {
+						result_mode += mode[i];
+						c.add_mode(mode[i]);
+					}
+				}
+			} else {
+				msg += ":" + config.get_server_name() + " 501 " + target + " :Unknown mode \"" + mode[i] + "\"\r\n";
 			}
+		}
+	} else {
+		reply = "Unknown mode";
+		return 501;
+	}
+	if (!result_mode.empty()) {
+		msg += ":" + c.to_string() + " MODE " + target + " :" + mode[0] + result_mode + "\r\n";
+	}
+	send(c.get_fd(), msg.c_str(), msg.size(), 0);
+	return 0;
+}
+
+int server::channel_mode_cmd(const command_parser &, client &, std::string &) {
+	// TODO
+	return 0;
+}
+
+int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO: add channel modes
+	if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
+	}
+	const std::string &target = cmd.get_args().at(0);
+	if (nick_to_fd.find(target) == nick_to_fd.end() && channels.find(target) == channels.end()) {
+		reply = target + " :No such nick or channel name";
+		return 401;
+	}
+	if (target != c.get_nickname() && channels.find(target) == channels.end()) {
+		reply = ":Can't set/get mode for other users";
+		return 502;
+	}
+	if (cmd.get_args().size() == 1) {
+		if (target == c.get_nickname()) {
+			reply = c.get_mode();
 		} else {
-			reply = "Unknown mode";
-			return 501;
+			// TODO: add get mode to channel;
 		}
-		if (!result_mode.empty()) {
-			msg += ":" + c.to_string() + " MODE " + nickname + " :" + mode[0] + result_mode + "\r\n";
+		return 221;
+	} else {
+		if (target == c.get_nickname()) {
+			return user_mode_cmd(cmd, c, reply);
+		} else {
+			return channel_mode_cmd(cmd, c, reply);
 		}
-		send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	}
 	return 0;
 }
@@ -658,20 +712,75 @@ int server::info_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::invite_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
-	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
-	(void)cmd;
-	(void)c;
-	(void)reply;
+	if (cmd.get_args().size() != 2) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
+	}
+	const std::string &nickname = cmd.get_args().at(0);
+	const std::string &channel = cmd.get_args().at(1);
+	if (nick_to_fd.find(nickname) == nick_to_fd.end()) {
+		reply = nickname + " :No such nick or channel name";
+		return 401;
+	}
+	client &other = clients.find(nick_to_fd[nickname])->second;
+	if (channels.find(channel) != channels.end()
+			&& channels[channel].is_in_channel(&other)) {
+		reply = nickname + " " + channel + " :is already on channel";
+		return 443;
+	} else if (channels.find(channel) != channels.end()) {
+		if (!channels[channel].can_invite(&c)) {
+			reply = channel + " :You are not channel operator";
+			return 482;
+		}
+	} else {
+		std::string msg = ":" + other.to_string() + " INVITE " + nickname + " " + channel + "\r\n";
+		send(other.get_fd(), msg.c_str(), msg.size(), 0);
+		msg = ":" + c.to_string() + " 341 " + c.get_nickname() + " " + nickname + " " + channel + "\r\n";
+		send(c.get_fd(), msg.c_str(), msg.size(), 0);
+	}
 	return 0;
 }
 
 int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
-	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
-	(void)cmd;
-	(void)c;
-	(void)reply;
+	if (cmd.get_args().size() < 2 || cmd.get_args().size() > 3) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
+	}
+	std::string message = cmd.get_args().size() == 3 ? cmd.get_args().at(2) : c.get_nickname();
+	std::string nickname = cmd.get_args().at(1);
+	std::vector<std::string> nicknames;
+	if (nickname.find(",") != std::string::npos) {
+		while (nickname.find(",") != std::string::npos) {
+			nicknames.push_back(nickname.substr(0, nickname.find(",")));
+			nickname = nickname.substr(nicknames.back().size() + 1);
+		}
+	} else {
+		nicknames.push_back(nickname);
+	}
+	for (size_t i = 0; i < nicknames.size(); ++i) {
+		const std::string &channel = cmd.get_args().at(0);
+		if (nick_to_fd.find(nicknames[i]) == nick_to_fd.end()) {
+			reply = nicknames[i] + " :No such nick or channel name";
+			return 401;
+		} else if (channels.find(channel) == channels.end()) {
+			reply = channel + " :No such channel";
+			return 403;
+		} else if (!channels[channel].can_kick(&c)) {
+			reply = channel + " :Your privileges are too low";
+			return 482;
+		} else if (!channels[channel].is_in_channel(&clients.find(nick_to_fd[nicknames[i]])->second)) {
+			reply = nicknames[i] + " " + channel + " They aren't on that channel";
+			return 441;
+		} else {
+			std::string msg = ":" + c.to_string() + " KICK " + channel + " " + nicknames[i] + " :" + message + "\r\n";
+			channels[channel].send_message(msg, nullptr);
+			channels[channel].remove_client(&clients.find(nick_to_fd[nicknames[i]])->second);
+			if (channels[channel].empty()) {
+				channels.erase(channels.find(channel));
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -721,7 +830,9 @@ int server::notice_cmd(const command_parser &cmd, client &c, std::string &) {
 		if (nicks_it != nick_to_fd.cend() || channels_it != channels.end()) {
 			std::string msg = ":" + c.to_string() + " NOTICE " + receiver + " :" + text + "\r\n";
 			if (channels_it != channels.end()) {
-				channels_it->second.send_message(msg, &c);
+				if (channels_it->second.can_speak(&c)) {
+					channels_it->second.send_message(msg, &c);
+				}
 			} else {
 				send(nicks_it->second, msg.c_str(), msg.size(), 0);
 			}

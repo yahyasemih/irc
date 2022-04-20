@@ -127,7 +127,7 @@ const std::string &client::get_away_msg() const {
 }
 
 bool client::is_away() const {
-	return !away_msg.empty();
+	return !away_msg.empty() || has_mode('a');
 }
 
 std::string client::get_mode() const {

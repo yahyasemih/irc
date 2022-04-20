@@ -22,19 +22,46 @@ void channel::add_client(client *c) {
 		users.insert(c);
 	}
 	if (users.size() == 1) {
-		owner = c;
+		operators.insert(c);
 	}
 }
 
 void channel::remove_client(client *c) {
-	if (owner == c) {
-		owner = nullptr;
-	}
+	operators.erase(c);
+	speakers.erase(c);
 	users.erase(c);
 }
 
 bool channel::is_in_channel(client *c) const {
 	return users.find(c) != users.end();
+}
+
+bool channel::can_speak(client *c) const {
+	if (has_mode('m')) {
+		return speakers.find(c) != speakers.end() || operators.find(c) != operators.end();
+	} else {
+		return !has_mode('n') || is_in_channel(c);
+	}
+}
+
+bool channel::can_join(client *c) const {
+	return !has_mode('i') || invitees.find(c) != invitees.end();
+}
+
+bool channel::can_set_topic(client *c) const {
+	return !has_mode('t') || operators.find(c) != operators.end();
+}
+
+bool channel::can_invite(client *c) const {
+	return is_in_channel(c) && (!has_mode('i') || operators.find(c) != operators.end());
+}
+
+bool channel::can_kick(client *c) const {
+	return operators.find(c) != operators.end();
+}
+
+size_t channel::get_limit() const {
+	return has_mode('l') ? limit : std::numeric_limits<size_t>::max();
 }
 
 size_t channel::size() const {
@@ -48,12 +75,58 @@ bool channel::empty() const {
 std::string channel::to_string() const {
 	std::string res;
 	for (std::set<client *>::const_iterator it = users.cbegin(); it != users.cend(); ++it) {
+
 		if (res.empty()) {
-			res += (*it == owner ? "@" : "") + (*it)->get_nickname();
+			res += get_user_prefix(*it) + (*it)->get_nickname();
 		} else {
-			res += (*it == owner ? " @" : " ") + (*it)->get_nickname();
+			res += " " + get_user_prefix(*it) + (*it)->get_nickname();
 		}
 	}
-	// TODO: check what else should be printed in addition to '@' before channel creator
 	return res;
+}
+
+std::string channel::get_mode() const {
+	std::string result = "+";
+	for (std::unordered_set<char>::const_iterator it = mode.cbegin(); it != mode.cend(); ++it) {
+		result += *it;
+	}
+	return result;
+}
+
+bool channel::has_mode(char c) const {
+	return mode.find(c) != mode.end();
+}
+
+void channel::add_mode(char c) {
+	if (!has_mode(c)) {
+		mode.insert(c);
+	}
+}
+
+void channel::remove_mode(char c) {
+	if (has_mode(c)) {
+		mode.erase(c);
+	}
+}
+
+std::string channel::get_user_prefix(client *c) const {
+	if (operators.find(c) != operators.end()) {
+		return "@";
+	} else if (speakers.find(c) != speakers.end()) {
+		return "+";
+	} else {
+		return "";
+	}
+}
+
+void channel::remove_invitation(client *c) {
+	invitees.erase(c);
+}
+
+void channel::set_topic(const std::string &topic) {
+	this->topic = topic;
+}
+
+const std::string &channel::get_topic() const {
+	return topic;
 }
