@@ -450,7 +450,7 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			channels[chnl].add_client(&c);
 			std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
 			channels[chnl].send_message(msg, nullptr);
-			msg = ":" + config.get_server_name() + " 353 " + c.get_nickname() + " = " + channels[chnl].to_string() + "\r\n";
+			msg = ":" + config.get_server_name() + " 353 " + c.get_nickname() + " = " + chnl + " :" + channels[chnl].to_string() + "\r\n";
 			msg += ":" + config.get_server_name() + " 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
 			send(c.get_fd(), msg.c_str(), msg.size(), 0);
 		}
