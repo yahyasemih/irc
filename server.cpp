@@ -24,7 +24,9 @@ server::command_map server::init_map() {
 	map.insert(std::make_pair("list", LIST));
 	map.insert(std::make_pair("notice", NOTICE));
 	map.insert(std::make_pair("ping", PING));
+	map.insert(std::make_pair("pong", PING));
 	map.insert(std::make_pair("who", WHO));
+	map.insert(std::make_pair("whois", WHO));
 
 	return map;
 }
@@ -53,7 +55,9 @@ const server::command_function server::command_functions[INVALID_CMD] = {
 	&server::list_cmd,
 	&server::notice_cmd,
 	&server::ping_cmd,
-	&server::who_cmd
+	&server::pong_cmd,
+	&server::who_cmd,
+	&server::whois_cmd
 };
 
 server::server(int port, std::string password, std::string config_file) {
@@ -639,6 +643,15 @@ int server::ping_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	return 0;
 }
 
+int server::pong_cmd(const command_parser &cmd, client &, std::string &reply) {
+	if (cmd.get_args().size() != 1) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
+	}
+	// Nothing to do, PONG is just a reply to PING
+	return 0;
+}
+
 int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	//TODO: implement flag 'o' for listing only operators
 	if (cmd.get_args().size() != 1) {
@@ -650,5 +663,14 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	(void)it;
 	(void)c;
 	//COMMAND: WHO On Progress...
+	return 0;
+}
+
+int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO
+	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	(void)cmd;
+	(void)c;
+	(void)reply;
 	return 0;
 }

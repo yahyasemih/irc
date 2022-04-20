@@ -67,7 +67,9 @@ private:
 	int list_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int notice_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int ping_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int pong_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int who_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int whois_cmd(const command_parser &cmd, client &c, std::string &reply);
 
 	static command_map init_map();
 public:
