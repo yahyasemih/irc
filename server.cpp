@@ -434,7 +434,10 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 0; // No reply to send, already sent by channel
 	}
 	std::string chnl = cmd.get_args().at(0);
-	if (channels.find(chnl) == channels.end()) {
+	if (strchr("#+&", chnl[0]) == nullptr || chnl.find(":") != std::string::npos) {
+		reply = chnl + " :No such channel";
+		return 403;
+	} else if (channels.find(chnl) == channels.end()) {
 		channel ch = cmd.get_args().size() == 1 ? channel() : channel(cmd.get_args().at(1));
 		ch.add_client(&c);
 		channels.insert(std::make_pair(chnl, ch));
@@ -443,10 +446,7 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		msg += "\r\n:" + config.get_server_name() + " 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
 		send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	} else {
-		if (strchr("#+&", chnl[0]) == nullptr || chnl.find(":") != std::string::npos) {
-			reply = chnl + " :No such channel";
-			return 403;
-		} else if (!channels[chnl].is_in_channel(&c)) {
+		if (!channels[chnl].is_in_channel(&c)) {
 			channels[chnl].add_client(&c);
 			std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
 			channels[chnl].send_message(msg, nullptr);
