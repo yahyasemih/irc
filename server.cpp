@@ -215,6 +215,24 @@ void server::clear_disconnected_clients(const std::vector<int> &disconnected) {
 	}
 }
 
+std::string server::get_clients_without_channel() const {
+	std::string result;
+	if (channels.empty()) {
+		for (client_map::const_iterator client_it = clients.begin(); client_it != clients.end(); ++client_it) {
+			result += (result.empty() ? "" : " ") + client_it->second.get_nickname();
+		}
+	} else {
+		for (client_map::const_iterator client_it = clients.begin(); client_it != clients.end(); ++client_it) {
+			for (channel_map::const_iterator channel_it = channels.cbegin(); channel_it != channels.cend(); ++channel_it) {
+				if (!channel_it->second.is_in_channel(&(const_cast<client &>(client_it->second)))) {
+					result += (result.empty() ? "" : " ") + client_it->second.get_nickname();
+				}
+			}
+		}
+	}
+	return result;
+}
+
 int server::handle_command(const std::string &line, client &c, std::string &reply) {
 	if (line.size() > 510) {
 		reply = ":Request too long";
@@ -449,18 +467,16 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		channel ch = cmd.get_args().size() == 1 ? channel() : channel(cmd.get_args().at(1));
 		ch.add_client(&c);
 		channels.insert(std::make_pair(chnl, ch));
-		std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
-		msg += ":" + config.get_server_name() + " 353 " + c.get_nickname() + " = " + chnl + " :@" + c.get_nickname();
-		msg += "\r\n:" + config.get_server_name() + " 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
+		std::string msg;
+		msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
 		send(c.get_fd(), msg.c_str(), msg.size(), 0);
+		names_cmd(command_parser("NAMES " + chnl), c, msg);
 	} else {
 		if (!channels[chnl].is_in_channel(&c)) {
 			channels[chnl].add_client(&c);
 			std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
 			channels[chnl].send_message(msg, nullptr);
-			msg = ":" + config.get_server_name() + " 353 " + c.get_nickname() + " = " + chnl + " :" + channels[chnl].to_string() + "\r\n";
-			msg += ":" + config.get_server_name() + " 366 " + c.get_nickname() + " " + chnl + " :End of NAMES list\r\n";
-			send(c.get_fd(), msg.c_str(), msg.size(), 0);
+			names_cmd(command_parser("NAMES " + chnl), c, msg);
 		}
 	}
 
@@ -597,11 +613,30 @@ int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
-	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
-	(void)cmd;
-	(void)c;
-	(void)reply;
+	if (cmd.get_args().size() > 1) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
+	}
+	std::string msg;
+	const std::string &server = config.get_server_name();
+	const std::string &nick = c.get_nickname();
+	if (cmd.get_args().empty()) {
+		for (channel_map::const_iterator entry = channels.cbegin(); entry != channels.cend(); ++entry) {
+			msg = ":" + server + " 353 " + nick + " = " + entry->first + " :" + entry->second.to_string() + "\r\n";
+		}
+		std::string without_channel = get_clients_without_channel();
+		if (!without_channel.empty()) {
+			msg += ":" + server + " 353 " + nick + " * * :" + without_channel + "\r\n";
+		}
+		msg += ":" + server + " 366 " + nick + " * :End of NAMES list\r\n";
+	} else {
+		const std::string &channel = cmd.get_args().at(0);
+		if (channels.find(channel) != channels.end()) {
+			msg = ":" + server + " 353 " + nick + " = " + channel + " :" + channels[channel].to_string() + "\r\n";
+		}
+		msg += ":" + server + " 366 " + nick + " " + channel + " :End of NAMES list\r\n";
+	}
+	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	return 0;
 }
 

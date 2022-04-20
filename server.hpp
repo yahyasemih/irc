@@ -44,6 +44,7 @@ private:
 	void accept_client();
 	void receive_from_client(client &c);
 	void clear_disconnected_clients(const std::vector<int> &disconnected);
+	std::string get_clients_without_channel() const;
 	int handle_command(const std::string &line, client &c, std::string &reply);
 
 	int nick_cmd(const command_parser &cmd, client &c, std::string &reply);
