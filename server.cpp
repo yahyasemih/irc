@@ -526,7 +526,7 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	for (channel_map::iterator it = channels.begin(); it != channels.end();) {
 		if (it->second.is_in_channel(&c)) {
 			std::string msg = ":" + c.to_string() + " QUIT :";
-			msg += cmd.get_args().empty() ? c.get_nickname() : cmd.get_args().at(0) + "\r\n";
+			msg += (cmd.get_args().empty() ? c.get_nickname() : cmd.get_args().at(0)) + "\r\n";
 			// TODO: send also stats notice (probably not)
 			it->second.send_message(msg, &c);
 			it->second.remove_client(&c);
@@ -536,6 +536,8 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			} else {
 				it++;
 			}
+		} else {
+			it++;
 		}
 	}
 	return -1; // FATAL ERROR
@@ -946,9 +948,38 @@ int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) 
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
+	} else if (cmd.get_args().empty()) {
+		reply = ":No nickname given";
+		return 431;
+	} else if (cmd.get_args().size() > 1) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
 	}
-	(void)cmd;
-	(void)c;
-	(void)reply;
-	return 0;
+	const std::string &nickname = cmd.get_args().at(0);
+	if (nick_to_fd.find(nickname) == nick_to_fd.end()) {
+		reply = nickname + " :No such nick or channel name\r\n";
+		reply += ":" + config.get_server_name() + " 318 " + c.get_nickname() + " " + nickname + " :End of WHOIS list";
+		return 318;
+	}
+	client &c2 = clients.find(nick_to_fd[nickname])->second;
+	std::string msg = ":" + config.get_server_name() + " 311 " + c.get_nickname() + " " + nickname + " ~"
+			+ c2.get_username() + " " + c2.get_host() + " * :" + c2.get_realname() + "\r\n";
+	msg += ":" + config.get_server_name() + " 312 " + c.get_nickname() + " " + nickname + " " + config.get_server_name()
+			+ " :" + config.get_server_info() + "\r\n";
+	std::string chans;
+	for (channel_map::iterator it = channels.begin(); it != channels.end(); ++it) {
+		if (it->second.is_in_channel(&c2)) {
+			chans += it->second.get_user_prefix(&c2) + it->first + " ";
+		}
+	}
+	if (!chans.empty()) {
+		msg += ":" + config.get_server_name() + " 319 " + c.get_nickname() + " " + nickname + " :" + chans + "\r\n";
+	}
+	msg += ":" + config.get_server_name() + " 378 " + c.get_nickname() + " " + nickname + " :is connecting from *@"
+			+ c2.get_host() + " " + c2.get_host() + "\r\n";
+	msg += ":" + config.get_server_name() + " 379 " + c.get_nickname() + " " + nickname + " :is using mode "
+			+ c2.get_mode() + "\r\n";
+	send(c.get_fd(), msg.c_str(), msg.size(), 0);
+	reply = nickname + " :End of WHOIS list";
+	return 318;
 }

@@ -41,6 +41,7 @@ public:
 	const std::string &get_realname() const;
 	void set_pass(const std::string &p);
 	const std::string &get_pass();
+	const std::string &get_host() const;
 
 	bool connection_already_registered() const;
 	bool connection_not_registered() const;

@@ -21,6 +21,7 @@ public:
 
 	const operator_map &get_operators() const;
 	const std::string &get_server_name() const;
+	const std::string &get_server_info() const;
 	const std::string &get_version() const;
 	const std::string &get_user_modes() const;
 	const std::string &get_channel_modes() const;

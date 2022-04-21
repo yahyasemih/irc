@@ -24,6 +24,10 @@ const std::string &server_config::get_server_name() const {
 	return server_name;
 }
 
+const std::string &server_config::get_server_info() const {
+	return server_info;
+}
+
 const std::string &server_config::get_version() const {
 	return version;
 }

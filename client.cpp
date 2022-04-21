@@ -94,6 +94,10 @@ const std::string &client::get_pass() {
 	return pass;
 }
 
+const std::string &client::get_host() const {
+	return host;
+}
+
 std::string client::to_string() const {
 	return nickname + "!~" + username + "@" + host;
 }

@@ -18,7 +18,6 @@ private:
 	size_t limit;
 	std::string topic;
 
-	std::string get_user_prefix(client *c) const;
 public:
 	channel();
 	channel(const std::string &key);
@@ -44,6 +43,7 @@ public:
 	void remove_invitation(client *c);
 	void set_topic(const std::string &topic);
 	const std::string &get_topic() const;
+	std::string get_user_prefix(client *c) const;
 };
 
 #endif
