@@ -733,9 +733,10 @@ int server::info_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 402;
 	}
 	std::string msg = ":" + config.get_server_name() + " 371 " + c.get_nickname() + " :" + config.get_version() + "\r\n";
-	msg += ":" + config.get_server_name() + " 371 " + c.get_nickname() + ":Birth Date: " + __DATE__ + "\r\n";
-	msg += ":" + config.get_server_name() + " 371 " + c.get_nickname() + ":On-line since: " + start_time + "\r\n";
-	msg += ":" + config.get_server_name() + " 374 " + c.get_nickname() + ":End of INFO list\r\n";
+	msg += ":" + config.get_server_name() + " 371 " + c.get_nickname() + " :Birth Date: " + __DATE__ + " at "
+			+ __TIME__ + "\r\n";
+	msg += ":" + config.get_server_name() + " 371 " + c.get_nickname() + " :On-line since: " + start_time + "\r\n";
+	msg += ":" + config.get_server_name() + " 374 " + c.get_nickname() + " :End of INFO list\r\n";
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	return 0;
 }
