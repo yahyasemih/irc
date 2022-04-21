@@ -304,6 +304,10 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 					reply = nickname + " :Nickname already in use";
 					return 433;
 				}
+				if (c.is_restricted()) {
+					reply = ":Your connection is restricted";
+					return 484;
+				}
 				if (c.is_connected() && !c.get_nickname().empty()) {
 					reply = ":" + c.to_string() + " NICK :" + nickname + "\r\n";
 					send(c.get_fd(), reply.c_str(), reply.size(), 0);
@@ -325,6 +329,10 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		if (nick_to_fd.find(nickname) != nick_to_fd.end()) {
 			reply = nickname + " :Nickname already in use";
 			return 433;
+		}
+		if (c.is_restricted()) {
+			reply = ":Your connection is restricted";
+			return 484;
 		}
 		if (c.is_connected() && !c.get_nickname().empty()) {
 			reply = ":" + c.to_string() + " NICK :" + nickname + "\r\n";
@@ -447,8 +455,13 @@ int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply
 				if (channels_it->second.can_speak(&c)) {
 					channels_it->second.send_message(msg, &c);
 				} else {
-					reply = channels_it->first + " :Cannot send to channel";
-					return 404;
+					if (c.is_restricted()) {
+						reply = ":Your connection is restricted";
+						return 484;
+					} else {
+						reply = channels_it->first + " :Cannot send to channel";
+						return 404;
+					}
 				}
 			} else {
 				client &c2 = clients.find(nicks_it->second)->second;
@@ -502,8 +515,13 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	} else {
 		if (!channels[chnl].is_in_channel(&c)) {
 			if (!channels[chnl].can_join(&c)) {
-				reply = chnl + " :Cannot join channel (+i) -- Invited users only";
-				return 473;
+				if (c.is_restricted()) {
+					reply = ":Your connection is restricted";
+					return 484;
+				} else {
+					reply = chnl + " :Cannot join channel (+i) -- Invited users only";
+					return 473;
+				}
 			} else if (channels[chnl].size() == channels[chnl].get_limit()) {
 				reply = chnl + " :Cannot join channel (+l) -- Channel is full, try later";
 				return 471;
@@ -622,8 +640,13 @@ int server::topic_cmd(const command_parser &cmd, client &c, std::string &reply) 
 					std::string msg = ":" + c.to_string() + " TOPIC " + chnl + " :" + topic + "\r\n";
 					ch.send_message(msg, nullptr);
 				} else {
-					reply = chnl + " :You are not channel operator";
-					return 482;
+					if (c.is_restricted()) {
+						reply = ":Your connection is restricted";
+						return 484;
+					} else {
+						reply = chnl + " :You are not channel operator";
+						return 482;
+					}
 				}
 			}
 		}
@@ -645,7 +668,7 @@ int server::user_mode_cmd(const command_parser &cmd, client &c, std::string &rep
 				modifier = mode[i];
 			} else if (mode[i] == 'a') {
 				msg += ":" + config.get_server_name() + " 481 " + target + " :Permission denied\r\n";
-			} else if (strchr("oO", mode[i]) != nullptr) {
+			} else if (mode[i] == 'o') {
 				if (c.is_oper() || c.has_mode(mode[i])) {
 					if (modifier == '-') {
 						if (c.has_mode(mode[i])) {
@@ -785,8 +808,13 @@ int server::invite_cmd(const command_parser &cmd, client &c, std::string &reply)
 		return 443;
 	} else if (channels.find(channel) != channels.end()) {
 		if (!channels[channel].can_invite(&c)) {
-			reply = channel + " :You are not channel operator";
-			return 482;
+			if (c.is_restricted()) {
+				reply = ":Your connection is restricted";
+				return 484;
+			} else {
+				reply = channel + " :You are not channel operator";
+				return 482;
+			}
 		}
 	}
 	std::string msg = ":" + other.to_string() + " INVITE " + nickname + " " + channel + "\r\n";
@@ -824,8 +852,13 @@ int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			reply = channel + " :No such channel";
 			return 403;
 		} else if (!channels[channel].can_kick(&c)) {
-			reply = channel + " :Your privileges are too low";
-			return 482;
+			if (c.is_restricted()) {
+				reply = ":Your connection is restricted";
+				return 484;
+			} else {
+				reply = channel + " :Your privileges are too low";
+				return 482;
+			}
 		} else if (!channels[channel].is_in_channel(&clients.find(nick_to_fd[nicknames[i]])->second)) {
 			reply = nicknames[i] + " " + channel + " They aren't on that channel";
 			return 441;

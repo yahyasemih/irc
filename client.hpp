@@ -50,6 +50,7 @@ public:
 	void set_away_msg(const std::string &msg);
 	const std::string &get_away_msg() const;
 	bool is_away() const;
+	bool is_restricted() const;
 
 	std::string to_string() const;
 	std::string get_mode() const;

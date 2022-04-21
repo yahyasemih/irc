@@ -38,7 +38,7 @@ bool channel::is_in_channel(client *c) const {
 
 bool channel::can_speak(client *c) const {
 	if (has_mode('m')) {
-		return speakers.find(c) != speakers.end() || operators.find(c) != operators.end();
+		return speakers.find(c) != speakers.end() || (!c->is_restricted() && operators.find(c) != operators.end());
 	} else {
 		return !has_mode('n') || is_in_channel(c);
 	}
@@ -49,15 +49,15 @@ bool channel::can_join(client *c) const {
 }
 
 bool channel::can_set_topic(client *c) const {
-	return !has_mode('t') || operators.find(c) != operators.end();
+	return !has_mode('t') || (!c->is_restricted() && operators.find(c) != operators.end());
 }
 
 bool channel::can_invite(client *c) const {
-	return is_in_channel(c) && (!has_mode('i') || operators.find(c) != operators.end());
+	return is_in_channel(c) && (!has_mode('i') || (!c->is_restricted() && operators.find(c) != operators.end()));
 }
 
 bool channel::can_kick(client *c) const {
-	return operators.find(c) != operators.end();
+	return (!c->is_restricted() && operators.find(c) != operators.end());
 }
 
 size_t channel::get_limit() const {

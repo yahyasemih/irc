@@ -118,6 +118,10 @@ bool client::is_away() const {
 	return !away_msg.empty() || has_mode('a');
 }
 
+bool client::is_restricted() const {
+	return has_mode('r');
+}
+
 std::string client::get_mode() const {
 	std::string result = "+";
 	for (std::unordered_set<char>::const_iterator it = mode.cbegin(); it != mode.cend(); ++it) {
