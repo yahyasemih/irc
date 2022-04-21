@@ -19,7 +19,6 @@ enum command_type {
 	TOPIC,
 	MODE,
 	USERS,
-	STATS,
 	INFO,
 	INVITE,
 	KICK,

@@ -16,7 +16,6 @@ server::command_map server::init_map() {
 	map.insert(std::make_pair("topic", TOPIC));
 	map.insert(std::make_pair("mode", MODE));
 	map.insert(std::make_pair("users", USERS));
-	map.insert(std::make_pair("stats", STATS));
 	map.insert(std::make_pair("info", INFO));
 	map.insert(std::make_pair("invite", INVITE));
 	map.insert(std::make_pair("kick", KICK));
@@ -47,7 +46,6 @@ const server::command_function server::command_functions[INVALID_CMD] = {
 	&server::topic_cmd,
 	&server::mode_cmd,
 	&server::users_cmd,
-	&server::stats_cmd,
 	&server::info_cmd,
 	&server::invite_cmd,
 	&server::kick_cmd,
@@ -524,7 +522,7 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		if (it->second.is_in_channel(&c)) {
 			std::string msg = ":" + c.to_string() + " QUIT :";
 			msg += cmd.get_args().empty() ? c.get_nickname() : cmd.get_args().at(0) + "\r\n";
-			// TODO: send also stats notice
+			// TODO: send also stats notice (probably not)
 			it->second.send_message(msg, &c);
 			it->second.remove_client(&c);
 			if (it->second.empty()) {
@@ -724,21 +722,22 @@ int server::users_cmd(const command_parser &, client &, std::string &reply) {
 	return 446;
 }
 
-int server::stats_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
-	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
-	(void)cmd;
-	(void)c;
-	(void)reply;
-	return 0;
-}
-
 int server::info_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
-	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
-	(void)cmd;
-	(void)c;
-	(void)reply;
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().size() > 1) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
+	} else if (cmd.get_args().size() == 1 && cmd.get_args().at(0) != config.get_server_name()) {
+		reply = cmd.get_args().at(0) + " :No such server";
+		return 402;
+	}
+	std::string msg = ":" + config.get_server_name() + " 371 " + c.get_nickname() + " :" + config.get_version() + "\r\n";
+	msg += ":" + config.get_server_name() + " 371 " + c.get_nickname() + ":Birth Date: " + __DATE__ + "\r\n";
+	msg += ":" + config.get_server_name() + " 371 " + c.get_nickname() + ":On-line since: " + start_time + "\r\n";
+	msg += ":" + config.get_server_name() + " 374 " + c.get_nickname() + ":End of INFO list\r\n";
+	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	return 0;
 }
 
@@ -853,7 +852,7 @@ int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) 
 }
 
 int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
+	// TODO (probabaly not)
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;

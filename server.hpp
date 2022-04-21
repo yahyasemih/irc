@@ -64,7 +64,6 @@ private:
 	int topic_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int mode_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int users_cmd(const command_parser &cmd, client &c, std::string &reply);
-	int stats_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int info_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int invite_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int kick_cmd(const command_parser &cmd, client &c, std::string &reply);
