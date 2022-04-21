@@ -26,6 +26,7 @@ server::command_map server::init_map() {
 	map.insert(std::make_pair("pong", PONG));
 	map.insert(std::make_pair("who", WHO));
 	map.insert(std::make_pair("whois", WHOIS));
+	map.insert(std::make_pair("ison", ISON));
 
 	return map;
 }
@@ -55,7 +56,8 @@ const server::command_function server::command_functions[INVALID_CMD] = {
 	&server::ping_cmd,
 	&server::pong_cmd,
 	&server::who_cmd,
-	&server::whois_cmd
+	&server::whois_cmd,
+	&server::ison_cmd
 };
 
 server::server(int port, std::string password, std::string config_file) : num_users(0) {
@@ -943,8 +945,6 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
-	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
@@ -982,4 +982,21 @@ int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) 
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	reply = nickname + " :End of WHOIS list";
 	return 318;
+}
+
+int server::ison_cmd(const command_parser &cmd, client &, std::string &reply) {
+	if (cmd.get_args().empty()) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
+	}
+	reply = ":";
+	for (size_t i = 0; i < cmd.get_args().size(); ++i) {
+		if (nick_to_fd.find(cmd.get_args().at(i)) != nick_to_fd.end()) {
+			if (reply.size() > 1) {
+				reply += " ";
+			}
+			reply += cmd.get_args().at(i);
+		}
+	}
+	return 303;
 }

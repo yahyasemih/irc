@@ -29,6 +29,7 @@ enum command_type {
 	PONG,
 	WHO,
 	WHOIS,
+	ISON,
 	INVALID_CMD // TODO: complete list of commands, add operator commands
 };
 
