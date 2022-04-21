@@ -719,13 +719,9 @@ int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	return 0;
 }
 
-int server::users_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO
-	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
-	(void)cmd;
-	(void)c;
-	(void)reply;
-	return 0;
+int server::users_cmd(const command_parser &, client &, std::string &reply) {
+	reply = ":USERS has been disabled";
+	return 446;
 }
 
 int server::stats_cmd(const command_parser &cmd, client &c, std::string &reply) {
