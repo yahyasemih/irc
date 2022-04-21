@@ -1,9 +1,9 @@
 - Add bot
 - Add file transfert
-- implement WHO, WHOIS
-- improve qulity of code (duplicated codes, non readable code, ...)
+- implement WHO
+- improve quality of code (duplicated codes, non readable code, ...)
 - resolve TODOs in files
-- implement and complete the server_config class
+- implement and complete the server_config class (or make it static and remove ability to create it from config file)
 - complete support of operators
 - complete support of channel/users modes
 - implement all channel operations
