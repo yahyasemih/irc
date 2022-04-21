@@ -10,6 +10,9 @@ public:
 private:
 	std::string server_name;
 	std::string server_info;
+	std::string version;
+	std::string user_modes;
+	std::string channel_modes;
 	operator_map operators;
 public:
 	server_config();
@@ -18,6 +21,9 @@ public:
 
 	const operator_map &get_operators() const;
 	const std::string &get_server_name() const;
+	const std::string &get_version() const;
+	const std::string &get_user_modes() const;
+	const std::string &get_channel_modes() const;
 };
 
 #endif

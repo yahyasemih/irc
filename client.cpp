@@ -57,22 +57,6 @@ bool client::is_connected() const {
 }
 
 void client::set_connected(bool connected) {
-	if (connected && !this->connected) {
-		std::string msg = ":irc.example.net 001 " + get_nickname() + " :Welcome to the Internet Relay Network " + to_string() + "\r\n"
-				":irc.example.net 002 " + get_nickname() + " :Your host is irc.example.net, running version ngircd-26.1 (x86_64/apple/darwin18.7.0)\r\n"
-				":irc.example.net 003 " + get_nickname() + " :This server has been started Mon Mar 21 2022 at 21:25:26 (+01)\r\n"
-				":irc.example.net 004 " + get_nickname() + " irc.example.net ngircd-26.1 abBcCFiIoqrRswx abehiIklmMnoOPqQrRstvVz\r\n"
-				//":irc.example.net 005 " + get_nickname() + " RFC2812 IRCD=ngIRCd CHARSET=UTF-8 CASEMAPPING=ascii PREFIX=(qaohv)~&@%+ CHANTYPES=#&+ CHANMODES=beI,k,l,imMnOPQRstVz CHANLIMIT=#&+:10 :are supported on this server\r\n"
-				//":irc.example.net 005 " + get_nickname() + " CHANNELLEN=50 NICKLEN=9 TOPICLEN=490 AWAYLEN=127 KICKLEN=400 MODES=5 MAXLIST=beI:50 EXCEPTS=e INVEX=I PENALTY FNC :are supported on this server\r\n"
-				":irc.example.net 251 " + get_nickname() + " :There are 1 users and 0 services on 1 servers\r\n";
-				//":irc.example.net 254 " + get_nickname() + " 1 :channels formed\r\n"
-				//":irc.example.net 255 " + get_nickname() + " :I have 1 users, 0 services and 0 servers\r\n"
-				//":irc.example.net 265 " + get_nickname() + " 1 1 :Current local users: 1, Max: 1\r\n"
-				//":irc.example.net 266 " + get_nickname() + " 1 1 :Current global users: 1, Max: 1\r\n"
-				//":irc.example.net 250 " + get_nickname() + " :Highest connection count: 1 (2 connections received)\r\n"
-				//":irc.example.net 422 " + get_nickname() + " :MOTD file is missing\r\n";
-		send(get_fd(), msg.c_str(), msg.size(), 0);
-	}
 	this->connected = connected;
 }
 

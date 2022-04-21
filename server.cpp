@@ -60,7 +60,7 @@ const server::command_function server::command_functions[INVALID_CMD] = {
 	&server::whois_cmd
 };
 
-server::server(int port, std::string password, std::string config_file) {
+server::server(int port, std::string password, std::string config_file) : num_users(0) {
 	this->config = config_file.empty() ? server_config() : server_config(config_file);
 	this->password = password;
 	protoent *protocol;
@@ -99,6 +99,10 @@ server::~server() {
 }
 
 void server::start() {
+	std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+	std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+	start_time = std::ctime(&now_time);
+	start_time = start_time.substr(0, start_time.find("\n"));
 	is_running = true;
 	while (is_running) {
 		int r = poll(pollfds.data(), pollfds.size(), 0);
@@ -125,6 +129,7 @@ void server::start() {
 								join_cmd(command_parser("JOIN 0"), c, reply);
 								nick_to_fd.erase(c.get_nickname());
 								clients.erase(pf.fd);
+								close(pf.fd);
 								std::cout << "client disconnected" << std::endl;
 							} else if (reply_code == 400) {
 								std::string final_reply = "ERROR " + reply + "\r\n";
@@ -147,6 +152,7 @@ void server::start() {
 						join_cmd(command_parser("JOIN 0"), clients.find(pf.fd)->second, reply);
 						nick_to_fd.erase(clients.find(pf.fd)->second.get_nickname());
 						clients.erase(pf.fd);
+						close(pf.fd);
 						std::cout << "client disconnected" << std::endl;
 					}
 				}
@@ -164,25 +170,21 @@ void server::stop() {
 	for (size_t i = 0; i < pollfds.size(); ++i){
 		std::string msg = "ERROR :Server going down\r\n";
 		send(pollfds[i].fd, msg.c_str(), msg.size(), 0);
-		// TODO: if pd is in clients map then send notice (maybe)
 	}
 }
 
 void server::welcome_client(const client &c) const {
-	std::string msg = ":" + config.get_server_name() + " 001 " + c.get_nickname() + " :Welcome to the Internet Relay Network " + c.to_string() + "\r\n"
-			":" + config.get_server_name() + " 002 " + c.get_nickname() + " :Your host is " + config.get_server_name() + ", running version ngircd-26.1 (x86_64/apple/darwin18.7.0)\r\n"
-			":" + config.get_server_name() + " 003 " + c.get_nickname() + " :This server has been started Mon Mar 21 2022 at 21:25:26 (+01)\r\n"
-			":" + config.get_server_name() + " 004 " + c.get_nickname() + " " + config.get_server_name() + " ngircd-26.1 abBcCFiIoqrRswx abehiIklmMnoOPqQrRstvVz\r\n"
-			":" + config.get_server_name() + " 005 " + c.get_nickname() + " RFC2812 IRCD=ngIRCd CHARSET=UTF-8 CASEMAPPING=ascii PREFIX=(qaohv)~&@%+ CHANTYPES=#&+ CHANMODES=beI,k,l,imMnOPQRstVz CHANLIMIT=#&+:10 :are supported on this server\r\n"
-			":" + config.get_server_name() + " 005 " + c.get_nickname() + " CHANNELLEN=50 NICKLEN=9 TOPICLEN=490 AWAYLEN=127 KICKLEN=400 MODES=5 MAXLIST=beI:50 EXCEPTS=e INVEX=I PENALTY FNC :are supported on this server\r\n"
-			":" + config.get_server_name() + " 251 " + c.get_nickname() + " :There are 1 users and 0 services on 1 servers\r\n"
-			":" + config.get_server_name() + " 254 " + c.get_nickname() + " 1 :channels formed\r\n"
-			":" + config.get_server_name() + " 255 " + c.get_nickname() + " :I have 1 users, 0 services and 0 servers\r\n"
-			":" + config.get_server_name() + " 265 " + c.get_nickname() + " 1 1 :Current local users: 1, Max: 1\r\n"
-			":" + config.get_server_name() + " 266 " + c.get_nickname() + " 1 1 :Current global users: 1, Max: 1\r\n"
-			":" + config.get_server_name() + " 250 " + c.get_nickname() + " :Highest connection count: 1 (2 connections received)\r\n"
-			":" + config.get_server_name() + " 422 " + c.get_nickname() + " :MOTD file is missing\r\n";
-		send(c.get_fd(), msg.c_str(), msg.size(), 0);
+	std::string msg = ":" + config.get_server_name() + " 001 " + c.get_nickname()
+					+ " :Welcome to the Internet Relay Network " + c.to_string() + "\r\n"
+			+ ":" + config.get_server_name() + " 002 " + c.get_nickname() + " :Your host is " + config.get_server_name()
+					+ ", running version " + config.get_version() + "\r\n"
+			+ ":" + config.get_server_name() + " 003 " + c.get_nickname() + " :This server has been started "
+					+ start_time + "\r\n"
+			+ ":" + config.get_server_name() + " 004 " + c.get_nickname() + " " + config.get_server_name() + " "
+					+ config.get_version() + " " +config.get_user_modes() + " " + config.get_channel_modes() + "\r\n"
+			+ ":irc.example.net 251 " + c.get_nickname() + " :There are " + std::to_string(num_users)
+					+ " users and 0 services on 1 servers\r\n";
+	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 }
 
 void server::accept_client() {
@@ -212,6 +214,7 @@ void server::receive_from_client(client &c) {
 void server::clear_disconnected_clients(const std::vector<int> &disconnected) {
 	for (size_t i = 0; i < disconnected.size(); ++i) {
 		pollfds.erase(pollfds.begin() + disconnected[i]);
+		--num_users;
 	}
 }
 
@@ -265,7 +268,7 @@ int server::pass_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		reply = ":Unauthorized command (already registered)";
 		return 462;
 	} else if (cmd.get_args().size() != 1) {
-		reply = cmd.get_cmd() + " :Syntax error\r\n";
+		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	} else {
 		c.set_pass(cmd.get_args().at(0));
@@ -309,7 +312,12 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 				c.set_nickname(nickname);
 				nick_to_fd.insert(std::make_pair(nickname, c.get_fd()));
 			}
-			c.set_connected(true);
+			if (!c.is_connected()) {
+				++num_users;
+				std::cout << "client connected" << std::endl;
+				welcome_client(c);
+				c.set_connected(true);
+			}
 			return 0;
 		}
 	}
@@ -331,7 +339,7 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 
 int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO: fix chaining/checking of checking errors (cnx already/not registered cases)
-	if (c.connection_not_registered()) {
+	if (!c.get_username().empty() && !c.is_connected()) {
 		reply = ":You have not registered";
 		return 451;
 	} else if (c.connection_already_registered()) {
@@ -351,7 +359,12 @@ int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		} else {
 			c.set_username(username);
 			c.set_realname(realname);
-			c.set_connected(true);
+			if (!c.is_connected()) {
+				++num_users;
+				std::cout << "client connected" << std::endl;
+				welcome_client(c);
+				c.set_connected(true);
+			}
 			return 0;
 		}
 	} else {

@@ -39,6 +39,8 @@ private:
 	sockaddr_in addr;
 	server_config config;
 	bool is_running;
+	std::string start_time;
+	size_t num_users;
 
 	void welcome_client(const client &c) const;
 	void accept_client();
