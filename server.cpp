@@ -23,9 +23,9 @@ server::command_map server::init_map() {
 	map.insert(std::make_pair("list", LIST));
 	map.insert(std::make_pair("notice", NOTICE));
 	map.insert(std::make_pair("ping", PING));
-	map.insert(std::make_pair("pong", PING));
+	map.insert(std::make_pair("pong", PONG));
 	map.insert(std::make_pair("who", WHO));
-	map.insert(std::make_pair("whois", WHO));
+	map.insert(std::make_pair("whois", WHOIS));
 
 	return map;
 }
@@ -765,12 +765,11 @@ int server::invite_cmd(const command_parser &cmd, client &c, std::string &reply)
 			reply = channel + " :You are not channel operator";
 			return 482;
 		}
-	} else {
-		std::string msg = ":" + other.to_string() + " INVITE " + nickname + " " + channel + "\r\n";
-		send(other.get_fd(), msg.c_str(), msg.size(), 0);
-		msg = ":" + c.to_string() + " 341 " + c.get_nickname() + " " + nickname + " " + channel + "\r\n";
-		send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	}
+	std::string msg = ":" + other.to_string() + " INVITE " + nickname + " " + channel + "\r\n";
+	send(other.get_fd(), msg.c_str(), msg.size(), 0);
+	msg = ":" + c.to_string() + " 341 " + c.get_nickname() + " " + nickname + " " + channel + "\r\n";
+	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	return 0;
 }
 
