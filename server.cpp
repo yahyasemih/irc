@@ -477,6 +477,7 @@ int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply
 }
 
 int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO : (maybe) handle multiple channels
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
@@ -564,6 +565,7 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO : (maybe) handle multiple channels
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
@@ -876,6 +878,7 @@ int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO : (maybe) handle multiple channels
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
@@ -908,6 +911,7 @@ int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) 
 
 int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO (probabaly not)
+	// TODO : (maybe) handle multiple channels
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
@@ -963,6 +967,7 @@ int server::pong_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO : (maybe) handle wilrdcards, multiple nicknames
 	//TODO: implement flag 'o' for listing only operators
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
@@ -978,6 +983,7 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	// TODO : (maybe) handle wilrdcards, multiple nicknames
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
