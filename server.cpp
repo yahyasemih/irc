@@ -336,7 +336,6 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO: fix chaining/checking of checking errors (cnx already/not registered cases)
 	if (!c.get_username().empty() && !c.is_connected()) {
 		reply = ":You have not registered";
 		return 451;

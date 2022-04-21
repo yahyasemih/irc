@@ -1,9 +1,9 @@
 - Add bot
 - Add file transfert
-- implement missing commands
+- implement WHO, WHOIS
+- improve qulity of code (duplicated codes, non readable code, ...)
 - resolve TODOs in files
 - implement and complete the server_config class
-- fix welcome reply and other replies related to it (stats, global/local users, ...)
 - complete support of operators
 - complete support of channel/users modes
 - implement all channel operations
