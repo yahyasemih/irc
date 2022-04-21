@@ -45,13 +45,11 @@ bool client::is_oper() const {
 }
 
 bool client::connection_already_registered() const {
-	return false; // TODO: fix check
-	return !pass.empty() || !nickname.empty() || !username.empty();
+	return is_connected();
 }
 
 bool client::connection_not_registered() const {
-	return false; // TODO: fix check
-	return nickname.empty() && !username.empty();
+	return !is_connected();
 }
 
 bool client::is_connected() const {

@@ -134,7 +134,7 @@ void server::start() {
 								std::string nickname = c.get_nickname().empty() ? "*" : c.get_nickname();
 								final_reply += " " + nickname + " " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
-							} else if (reply_code != 0) {
+							} else if (reply_code != 0 && !reply.empty()) {
 								send(c.get_fd(), reply.c_str(), reply.size(), 0);
 							}
 						}
@@ -249,15 +249,19 @@ int server::handle_command(const std::string &line, client &c, std::string &repl
 	command_map::const_iterator it = str_to_cmd.find(cmd_parser.get_cmd_lowercase());
 	command_type cmd_type = it == str_to_cmd.cend() ? INVALID_CMD : it->second;
 	if (cmd_type == INVALID_CMD) {
-		reply = cmd_parser.get_cmd() + " :Unknown command";
-		return 421;
+		if (c.is_connected()) {
+			reply = cmd_parser.get_cmd() + " :Unknown command";
+			return 421;
+		} else {
+			return 0;
+		}
 	} else {
 		return (this->*(command_functions[cmd_type]))(cmd_parser, c, reply);
 	}
 }
 
 int server::pass_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	if (c.connection_already_registered()) {
+	if (!c.get_pass().empty() || !c.get_username().empty()) {
 		reply = ":Unauthorized command (already registered)";
 		return 462;
 	} else if (cmd.get_args().size() != 1) {
@@ -904,8 +908,8 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
-	const std::string &channel_name = cmd.get_args().at(0);
-	channel_map::iterator it = channels.find(channel_name);
+	//const std::string &channel_name = cmd.get_args().at(0);
+	//channel_map::iterator it = channels.find(channel_name);
 	//COMMAND: WHO On Progress...
 	return 0;
 }
