@@ -3,7 +3,9 @@
 client::client(int socket_fd, const std::string &host) : fd(socket_fd), host(host), oper(false), connected(false) {
 }
 
-client::client(const client &o) : fd(o.fd), host(o.host), oper(o.oper), connected(o.connected) {
+client::client(const client &o) : fd(o.fd), nickname(o.nickname), username(o.username), realname(o.realname),
+		pass(o.pass) , host(o.host), away_msg(o.away_msg), mode(o.mode), oper(o.oper), connected(o.connected),
+		stream(o.stream.str()) {
 }
 
 client::~client() {

@@ -347,7 +347,7 @@ int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 461;
 	}
 	std::string username = cmd.get_args().at(0);
-	std::string mode = cmd.get_args().at(1);
+	int mode = std::atoi(cmd.get_args().at(1).c_str());
 	std::string realname = cmd.get_args().at(3);
 	if (!c.get_nickname().empty()) {
 		if (c.get_pass() != password) {
@@ -356,6 +356,12 @@ int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		} else {
 			c.set_username(username);
 			c.set_realname(realname);
+			if (mode & 8) {
+				c.add_mode('i');
+			}
+			if (mode & 4) {
+				c.add_mode('w');
+			}
 			if (!c.is_connected()) {
 				++num_users;
 				std::cout << "client connected" << std::endl;
@@ -625,39 +631,45 @@ int server::user_mode_cmd(const command_parser &cmd, client &c, std::string &rep
 	const std::string &target = cmd.get_args().at(0);
 	const std::string &mode = cmd.get_args().at(1);
 	std::string msg;
-	std::string result_mode;
+	std::string minus_result_mode;
+	std::string plus_result_mode;
 
 	if (mode[0] == '-' || mode[0] == '+') {
+		char modifier = mode[0];
 		for (size_t i = 1; i < mode.size(); ++i) {
-			if (strchr("oO", mode[i]) != nullptr) {
+			if (mode[i] == '-' || mode[i] == '+') {
+				modifier = mode[i];
+			} else if (mode[i] == 'a') {
+				msg += ":" + config.get_server_name() + " 481 " + target + " :Permission denied\r\n";
+			} else if (strchr("oO", mode[i]) != nullptr) {
 				if (c.is_oper() || c.has_mode(mode[i])) {
-					if (mode[0] == '-') {
+					if (modifier == '-') {
 						if (c.has_mode(mode[i])) {
-							result_mode += mode[i];
+							minus_result_mode += mode[i];
 							c.remove_mode(mode[i]);
 						}
 					} else {
 						if (!c.has_mode(mode[i])) {
-							result_mode += mode[i];
+							plus_result_mode += mode[i];
 							c.add_mode(mode[i]);
 						} else {
 							msg += ":" + config.get_server_name() + " 481 " + target + " :Permission denied\r\n";
 						}
 					}
 				} else {
-					if (mode[0] == '+') {
+					if (modifier == '+') {
 						msg += ":" + config.get_server_name() + " 481 " + target + " :Permission denied\r\n";
 					}
 				}
-			} else if (strchr("aiwrs", mode[i]) != nullptr) {
-				if (mode[0] == '-') {
+			} else if (strchr("iwrs", mode[i]) != nullptr) {
+				if (modifier == '-') {
 					if (c.has_mode(mode[i])) {
-						result_mode += mode[i];
+						minus_result_mode += mode[i];
 						c.remove_mode(mode[i]);
 					}
 				} else {
 					if (!c.has_mode(mode[i])) {
-						result_mode += mode[i];
+						plus_result_mode += mode[i];
 						c.add_mode(mode[i]);
 					}
 				}
@@ -669,8 +681,15 @@ int server::user_mode_cmd(const command_parser &cmd, client &c, std::string &rep
 		reply = "Unknown mode";
 		return 501;
 	}
-	if (!result_mode.empty()) {
-		msg += ":" + c.to_string() + " MODE " + target + " :" + mode[0] + result_mode + "\r\n";
+	if (!minus_result_mode.empty() || !plus_result_mode.empty()) {
+		msg += ":" + c.to_string() + " MODE " + target + " :";
+		if (!plus_result_mode.empty()) {
+			msg += "+" + plus_result_mode;
+		}
+		if (!minus_result_mode.empty()) {
+			msg += "-" + minus_result_mode;
+		}
+		msg += "\r\n";
 	}
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	return 0;
