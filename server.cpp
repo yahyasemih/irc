@@ -399,7 +399,10 @@ int server::oper_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	if (cmd.get_args().empty()) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().empty()) {
 		reply = ":No recipient given (" + cmd.get_cmd() + ")";
 		return 411;
 	} else if (cmd.get_args().size() == 1) {
@@ -439,7 +442,10 @@ int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply
 }
 
 int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
@@ -516,7 +522,10 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
@@ -541,7 +550,10 @@ int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::away_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	if (cmd.get_args().size() > 1) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().size() > 1) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	} else if (cmd.get_args().empty()) {
@@ -558,7 +570,10 @@ int server::away_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::topic_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	} else {
@@ -654,7 +669,10 @@ int server::channel_mode_cmd(const command_parser &, client &, std::string &) {
 
 int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO: add channel modes
-	if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
@@ -712,7 +730,10 @@ int server::info_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::invite_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	if (cmd.get_args().size() != 2) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().size() != 2) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
@@ -742,7 +763,10 @@ int server::invite_cmd(const command_parser &cmd, client &c, std::string &reply)
 }
 
 int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	if (cmd.get_args().size() < 2 || cmd.get_args().size() > 3) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().size() < 2 || cmd.get_args().size() > 3) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
@@ -785,7 +809,10 @@ int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	if (cmd.get_args().size() > 1) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().size() > 1) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
@@ -814,6 +841,10 @@ int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) 
 
 int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	}
 	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
 	(void)cmd;
 	(void)c;
@@ -822,7 +853,7 @@ int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::notice_cmd(const command_parser &cmd, client &c, std::string &) {
-	if (cmd.get_args().size() == 2) {
+	if (!c.connection_not_registered() && cmd.get_args().size() == 2) {
 		const std::string &receiver = cmd.get_args().at(0);
 		const std::string &text = cmd.get_args().at(1);
 		std::unordered_map<std::string, int>::iterator nicks_it = nick_to_fd.find(receiver);
@@ -843,7 +874,10 @@ int server::notice_cmd(const command_parser &cmd, client &c, std::string &) {
 }
 
 int server::ping_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	if (cmd.get_args().size() != 1) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().size() != 1) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
@@ -852,8 +886,8 @@ int server::ping_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	return 0;
 }
 
-int server::pong_cmd(const command_parser &cmd, client &, std::string &reply) {
-	if (cmd.get_args().size() != 1) {
+int server::pong_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	if (!c.connection_not_registered() && cmd.get_args().size() != 1) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
@@ -863,14 +897,15 @@ int server::pong_cmd(const command_parser &cmd, client &, std::string &reply) {
 
 int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	//TODO: implement flag 'o' for listing only operators
-	if (cmd.get_args().size() != 1) {
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	} else if (cmd.get_args().size() != 1) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
 	const std::string &channel_name = cmd.get_args().at(0);
 	channel_map::iterator it = channels.find(channel_name);
-	(void)it;
-	(void)c;
 	//COMMAND: WHO On Progress...
 	return 0;
 }
@@ -878,6 +913,10 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	// TODO
 	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
+	if (c.connection_not_registered()) {
+		reply = ":You have not registered";
+		return 451;
+	}
 	(void)cmd;
 	(void)c;
 	(void)reply;
