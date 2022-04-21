@@ -1,9 +1,9 @@
-- Add bot
-- Add file transfert
-- implement WHO
-- improve quality of code (duplicated codes, non readable code, ...)
-- resolve TODOs in files
+- Add bot (very important)
+- Add file transfert (works by default thanks to client)
+- implement WHO (important)
+- improve quality of code (duplicated codes, non readable code, ...) (less important)
+- resolve TODOs in files (important)
 - implement and complete the server_config class (or make it static and remove ability to create it from config file)
-- complete support of operators
-- complete support of channel/users modes
-- implement all channel operations
+- complete support of operators (important)
+- complete support of channel modes (very important)
+- implement all channel operations (very important)
