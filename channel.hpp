@@ -24,6 +24,7 @@ public:
 	~channel();
 
 	void send_message(const std::string &msg, client *sender) const;
+	const std::set<client *> &get_clients() const;
 	void add_client(client *c);
 	void remove_client(client *c);
 	bool is_in_channel(client *c) const;

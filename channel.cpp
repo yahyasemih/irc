@@ -17,6 +17,10 @@ void channel::send_message(const std::string &msg, client *sender) const {
 	}
 }
 
+const std::set<client *> &channel::get_clients() const {
+	return this->users;
+}
+
 void channel::add_client(client *c) {
 	if (users.find(c) == users.end()) {
 		users.insert(c);
