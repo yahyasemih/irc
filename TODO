@@ -1,4 +1,6 @@
-- Add bot (very important)
+- Add bot (very important) [DONE]
+    + integrate 42 intra to get users infos [DONE]
+    + integrate meteo api to get weather of a city [DONE]
 - Add file transfert (works by default thanks to client)
 - implement WHO (important)
 - improve quality of code (duplicated codes, non readable code, ...) (less important)
