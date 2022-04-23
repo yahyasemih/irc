@@ -27,7 +27,6 @@ function time_cmd(cl, ch) {
 }
 
 function meteo_cmd(cl, ch, city) {
-  console.log(city);
   if (!city) {
     cl.say(ch, "usage !meteo <city>");
   } else {
@@ -63,8 +62,7 @@ function meteo_cmd(cl, ch, city) {
             cl.say(ch, message);
           }
       })
-      .catch(function (error) {
-        console.log(error);
+      .catch(function (err) {
         cl.say(ch, "city or location not found");
       });
   }
@@ -87,13 +85,12 @@ async function is_available_cmd(cl, ch, login) {
       })
       .then(({ data }) => {
         const message = data.location
-          ? "Available : " + data.location
-          : "Unavailable";
+          ? `${login} is available : ${data.location}`
+          : `${login} is unavailable`;
         cl.say(ch, message);
       })
       .catch((err) => {
-        console.log(err);
-        const message = "Login (" + login + ") dose not exist";
+        const message = "Login '" + login + "' does not exist";
         cl.say(ch, message);
       });
   }
@@ -136,8 +133,7 @@ async function ft_cursus_info_cmd(cl, ch, login) {
         });
       })
       .catch((err) => {
-        console.log(err);
-        const message = "Login (" + login + ") dose not exist";
+        const message = "Login '" + login + "' does not exist";
         cl.say(ch, message);
       });
   }
@@ -152,8 +148,6 @@ async function ft_points_cmd(cl, ch, login) {
         intraAccessToken = access_token;
       });
     }
-
-    console.log(intraAccessToken);
     axios
       .get(`https://api.intra.42.fr/v2/users/${login}`, {
         headers: {
@@ -161,12 +155,11 @@ async function ft_points_cmd(cl, ch, login) {
         },
       })
       .then(({ data }) => {
-        const message = data.correction_point;
+        const message = `${login} has ${data.correction_point} points`;
         cl.say(ch, message);
       })
       .catch((err) => {
-        console.log(err);
-        const message = "Login (" + login + ") dose not exist";
+        const message = "Login '" + login + "' does not exist";
         cl.say(ch, message);
       });
   }
@@ -189,12 +182,11 @@ async function ft_wallet_cmd(cl, ch, login) {
       })
       .then(({ data }) => {
         const message =
-          data.wallet > 0 ? data.wallet : "[" + login + "] have 0 (mrakal)";
+          data.wallet > 0 ? `${login} has ${data.wallet} points` : "[" + login + "] have 0 (mrakal)";
         cl.say(ch, message);
       })
       .catch((err) => {
-        console.log(err);
-        const message = "Login (" + login + ") dose not exist";
+        const message = "Login '" + login + "' does not exist";
         cl.say(ch, message);
       });
   }
