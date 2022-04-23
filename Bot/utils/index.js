@@ -1,5 +1,5 @@
 const axios = require("axios");
-var intraAccessToken = undefined;
+const fetchData = require("./42api");
 
 async function help_cmd(cl, ch) {
   const message = `
@@ -72,18 +72,8 @@ async function is_available_cmd(cl, ch, login) {
   if (!login) {
     cl.say(ch, "usage !ft_is_available <login>");
   } else {
-    if (!intraAccessToken) {
-      await accessToken42().then(({ access_token }) => {
-        intraAccessToken = access_token;
-      });
-    }
-    axios
-      .get(`https://api.intra.42.fr/v2/users/${login}`, {
-        headers: {
-          Authorization: `bearer ${intraAccessToken}`,
-        },
-      })
-      .then(({ data }) => {
+    fetchData(login)
+      .then((data) => {
         const message = data.location
           ? `${login} is available : ${data.location}`
           : `${login} is unavailable`;
@@ -100,18 +90,8 @@ async function ft_cursus_info_cmd(cl, ch, login) {
   if (!login) {
     cl.say(ch, "usage !ft_cursus_info <login>");
   } else {
-    if (!intraAccessToken) {
-      await accessToken42().then(({ access_token }) => {
-        intraAccessToken = access_token;
-      });
-    }
-    axios
-      .get(`https://api.intra.42.fr/v2/users/${login}`, {
-        headers: {
-          Authorization: `bearer ${intraAccessToken}`,
-        },
-      })
-      .then(({ data }) => {
+    fetchData(login)
+      .then((data) => {
         let message = "";
         if (data.cursus_users.length) {
           message = `[${login}] available cursus and gades:`;
@@ -133,8 +113,7 @@ async function ft_cursus_info_cmd(cl, ch, login) {
         });
       })
       .catch((err) => {
-        const message = "Login '" + login + "' does not exist";
-        cl.say(ch, message);
+        cl.say(ch, err);
       });
   }
 }
@@ -143,24 +122,13 @@ async function ft_points_cmd(cl, ch, login) {
   if (!login) {
     cl.say(ch, "usage !ft_points <login>");
   } else {
-    if (!intraAccessToken) {
-      await accessToken42().then(({ access_token }) => {
-        intraAccessToken = access_token;
-      });
-    }
-    axios
-      .get(`https://api.intra.42.fr/v2/users/${login}`, {
-        headers: {
-          Authorization: `bearer ${intraAccessToken}`,
-        },
-      })
-      .then(({ data }) => {
+    fetchData(login)
+      .then((data) => {
         const message = `${login} has ${data.correction_point} points`;
         cl.say(ch, message);
       })
       .catch((err) => {
-        const message = "Login '" + login + "' does not exist";
-        cl.say(ch, message);
+        cl.say(ch, err);
       });
   }
 }
@@ -169,58 +137,21 @@ async function ft_wallet_cmd(cl, ch, login) {
   if (!login) {
     cl.say(ch, "usage !ft_wallet <login>");
   } else {
-    if (!intraAccessToken) {
-      await accessToken42().then(({ access_token }) => {
-        intraAccessToken = access_token;
-      });
-    }
-    axios
-      .get(`https://api.intra.42.fr/v2/users/${login}`, {
-        headers: {
-          Authorization: `bearer ${intraAccessToken}`,
-        },
-      })
-      .then(({ data }) => {
+    fetchData(login)
+      .then((data) => {
         const message =
-          data.wallet > 0 ? `${login} has ${data.wallet} points` : "[" + login + "] have 0 (mrakal)";
+          data.wallet > 0
+            ? `${login} has ${data.wallet} points`
+            : "[" + login + "] have 0 (mrakal)";
         cl.say(ch, message);
       })
       .catch((err) => {
-        const message = "Login '" + login + "' does not exist";
-        cl.say(ch, message);
+        cl.say(ch, err);
       });
   }
 }
 
-function accessToken42() {
-  return new Promise((resolve, reject) => {
-    axios
-      .request({
-        url: "/oauth/token",
-        method: "post",
-        baseURL: "https://api.intra.42.fr/",
-        auth: {
-          username:
-            "f08595cb84f22c093234355aaff97227f7331edad0f190d931bfbe2e7980e0ce",
-          password:
-            "60e994a064df5ef7eef313ac7e62260b54b4b885cfd6a2688ab069083cf84f12",
-        },
-        data: {
-          grant_type: "client_credentials",
-          scope: "public",
-        },
-      })
-      .then(function (response) {
-        resolve(response.data);
-      })
-      .catch(function (error) {
-        reject(error);
-      });
-  });
-}
-
 module.exports = {
-  accessToken42,
   part_cmd,
   time_cmd,
   help_cmd,
