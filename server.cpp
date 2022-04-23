@@ -182,7 +182,7 @@ void server::welcome_client(const client &c) const {
 					+ start_time + "\r\n"
 			+ ":" + config.get_server_name() + " 004 " + c.get_nickname() + " " + config.get_server_name() + " "
 					+ config.get_version() + " " +config.get_user_modes() + " " + config.get_channel_modes() + "\r\n"
-			+ ":irc.example.net 251 " + c.get_nickname() + " :There are " + std::to_string(num_users)
+			+ ":" + config.get_server_name() + " 251 " + c.get_nickname() + " :There are " + std::to_string(num_users)
 					+ " users and 0 services on 1 servers\r\n";
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 }
@@ -966,20 +966,76 @@ int server::pong_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	return 0;
 }
 
+bool match_name(std::string &r, const std::string &name) {
+	// std::string r = "*???????";
+	// std::string name = "zoulhafi";
+	// Not Completed Yet, many checks needs
+	size_t i, j = 0;
+	bool escape = false;
+	for (i = 0; r[i] != '\0'; i++) {
+		if (r[i] == '\\') {
+			escape = true;
+		} else if (!escape && r[i] == '?' && name[j] != '\0') {
+		} else if (!escape && r[i] == '*') {
+			while (r[i + 1] == '*')
+				i++;
+			while (r[i + 1] != '?' && name[j] != '\0' && r[i + 1] != name[j])
+				j++;
+			continue;
+		} else {
+			escape = false;
+			if (r[i] != name[j])
+				return false;
+		}
+		j++;
+	}
+	return r[i] == name[j];
+}
+
 int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO : (maybe) handle wilrdcards, multiple nicknames
+	//Under Review: handle wilrdcards, multiple nicknames
 	//TODO: implement flag 'o' for listing only operators
+	//TODO: don't show users have mode +i
+	//TODO: Client matched must not have common channel
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
-	} else if (cmd.get_args().size() != 1) {
+	} else if (cmd.get_args().size() > 2) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
-	//const std::string &channel_name = cmd.get_args().at(0);
-	//channel_map::iterator it = channels.find(channel_name);
-	//COMMAND: WHO On Progress...
-	return 0;
+	std::string to_search = cmd.get_args().empty() ? "*" : cmd.get_args().at(0);
+	if (strchr("#+&", to_search[0]) != nullptr) {
+		channel_map::iterator channel = channels.find(to_search);
+		if (channel != channels.end()) {
+			const std::set<client *> clients = channel->second.get_clients();
+			for (std::set<client *>::const_iterator it=clients.cbegin(); it!=clients.cend(); ++it) {
+				std::string msg = ":" + config.get_server_name() + " 352 " + c.get_nickname() + " ";
+				msg += channel->first + " " + (*it)->get_username() + " ";
+				msg += (*it)->get_host() + " " + config.get_server_name() + " ";
+				msg += (*it)->get_nickname() + " H" + channel->second.get_user_prefix(*it) + " ";
+				msg += ":0 " + (*it)->get_realname() + "\r\n";
+				send(c.get_fd(), msg.c_str(), msg.size(), 0);
+			}
+		}
+	} else {
+		for (client_map::const_iterator it = clients.begin(); it != clients.end(); ++it) {
+			//match all users => host, server, real name, nickname
+			if (match_name(to_search, it->second.get_host()) ||
+				  match_name(to_search, it->second.get_realname()) ||
+				  match_name(to_search, it->second.get_nickname()))
+			{
+				std::string msg = ":" + config.get_server_name() + " 352 " + c.get_nickname() + " ";
+				msg += "* " + it->second.get_username() + " ";
+				msg += it->second.get_host() + " " + config.get_server_name() + " ";
+				msg += it->second.get_nickname() + " H ";
+				msg += ":0 " + it->second.get_realname() + "\r\n";
+				send(c.get_fd(), msg.c_str(), msg.size(), 0);
+			}
+		}
+	}
+	reply = to_search + ":End of WHO list";
+	return 315;
 }
 
 int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) {
