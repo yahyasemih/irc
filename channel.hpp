@@ -77,7 +77,7 @@ public:
 	void set_key(const std::string &k);
 	const std::string &get_key() const;
 	long long get_created_at() const;
-	bool is_banned(const std::string &nickname) const;
+	bool is_banned(client *c) const;
 };
 
 #endif

@@ -42,7 +42,7 @@ bool channel::is_in_channel(client *c) const {
 }
 
 bool channel::can_speak(client *c) const {
-	if (is_banned(c->get_nickname())) {
+	if (is_banned(c)) {
 		return is_oper(c) || (speakers.find(c) != speakers.end());
 	} else if (has_mode('m')) {
 		return speakers.find(c) != speakers.end() || (!c->is_restricted() && operators.find(c) != operators.end());
@@ -262,6 +262,7 @@ long long channel::get_created_at() const {
 	return created_at;
 }
 
-bool channel::is_banned(const std::string &nickname) const {
+bool channel::is_banned(client *c) const {
+	const std::string &nickname = c->get_nickname();
 	return ban_list.find(nickname) != ban_list.end() && exception_list.find(nickname) == exception_list.end();
 }

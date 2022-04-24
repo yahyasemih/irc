@@ -533,7 +533,7 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 				|| cmd.get_args().at(1) != channels[chnl].get_key())) {
 				reply = chnl + " :Cannot join channel (+k) -- Wrong channel key";
 				return 475;
-			} else if (channels[chnl].is_banned(c.get_nickname())) {
+			} else if (channels[chnl].is_banned(&c)) {
 				reply = chnl + " :Cannot join channel (+b) -- You are banned";
 				return 474;
 			} else if (channels[chnl].size() == channels[chnl].get_limit()) {
