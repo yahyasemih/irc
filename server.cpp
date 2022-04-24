@@ -769,7 +769,10 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 				if (idx < cmd.get_args().size() && nick_to_fd.find(cmd.get_args().at(idx)) != nick_to_fd.end()) {
 					int fd = nick_to_fd.find(cmd.get_args().at(idx))->second;
 					client &other = clients.find(fd)->second;
-					if (modifier == '+') {
+					if (!it->second.is_in_channel(&other)) {
+						std::string client_msg = make_server_reply(441, target + " :They aren't on that channel", c);
+						send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
+					} else if (modifier == '+') {
 						if (it->second.add_oper(&other)) {
 							msg = ":" + c.to_string() + " MODE " + target + " +o " + cmd.get_args().at(idx) + "\r\n";
 						}
@@ -791,7 +794,10 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 				if (idx < cmd.get_args().size() && nick_to_fd.find(cmd.get_args().at(idx)) != nick_to_fd.end()) {
 					int fd = nick_to_fd.find(cmd.get_args().at(idx))->second;
 					client &other = clients.find(fd)->second;
-					if (modifier == '+') {
+					if (!it->second.is_in_channel(&other)) {
+						std::string client_msg = make_server_reply(441, target + " :They aren't on that channel", c);
+						send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
+					} else if (modifier == '+') {
 						if (it->second.add_speaker(&other)) {
 							msg = ":" + c.to_string() + " MODE " + target + " +v " + cmd.get_args().at(idx) + "\r\n";
 						}

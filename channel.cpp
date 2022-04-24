@@ -42,7 +42,9 @@ bool channel::is_in_channel(client *c) const {
 }
 
 bool channel::can_speak(client *c) const {
-	if (has_mode('m')) {
+	if (is_banned(c->get_nickname())) {
+		return is_oper(c) || (speakers.find(c) != speakers.end());
+	} else if (has_mode('m')) {
 		return speakers.find(c) != speakers.end() || (!c->is_restricted() && operators.find(c) != operators.end());
 	} else {
 		return !has_mode('n') || is_in_channel(c);
