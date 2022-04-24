@@ -60,8 +60,7 @@ const server::command_function server::command_functions[INVALID_CMD] = {
 	&server::ison_cmd
 };
 
-server::server(int port, std::string password, std::string config_file) : num_users(0) {
-	this->config = config_file.empty() ? server_config() : server_config(config_file);
+server::server(int port, std::string password) : num_users(0) {
 	this->password = password;
 	protoent *protocol;
 	protocol = getprotobyname("tcp");

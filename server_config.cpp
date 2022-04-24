@@ -4,14 +4,18 @@ server_config::server_config() : server_name("irc.1337.ma"),
 		server_info("This an IRC server made in 1337 school"),
 		version("leet-irc 1.0.0"),
 		user_modes("aioOrsw"),
-		channel_modes("ovimntklbeI") {
+		channel_modes("ovimntklbeI"),
+		configs_dir("./config") {
 			parse_conf();
-}
-
-server_config::server_config(const std::string &config_file) {
-	//TODO: parse config file
-	//this hack to mute flags MUST BE DELETE AFTER Implementing the function
-	(void)config_file;
+			//this for loop just temporarely to see results
+			for (std::map<std::string, std::map<std::string, std::string> >::iterator it= config.begin(); it!= config.end(); ++it) {
+				if (it->second.empty())
+					continue;
+				std::cout << "==========" << it->first << "==========" << std::endl;
+				for (std::map<std::string, std::string>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+					std::cout << it2->first << " => " << it2->second << std::endl;
+				}
+			}
 }
 
 server_config::~server_config() {
@@ -41,14 +45,32 @@ const std::string &server_config::get_channel_modes() const {
 	return channel_modes;
 }
 
-void			   server_config::parse_conf() {
-	std::ifstream inFile;
-	inFile.open("irc.conf");
+void				read_conf_folder(const std::string &configs_dir, std::string &str) {
+	DIR		*dir;
+	struct	dirent *ent;
 
 	std::stringstream strStream;
-	strStream << inFile.rdbuf();
-	std::string str = strStream.str();
 
+	if ((dir = opendir(configs_dir.c_str())) != NULL) {
+		while ((ent = readdir(dir)) != NULL) {
+			std::regex regex_config_names("^.*\\.conf$");
+			if (std::regex_match(ent->d_name, regex_config_names)) {
+				std::ifstream inFile;
+				inFile.open(configs_dir + "/" + ent->d_name);
+				strStream << inFile.rdbuf();
+				str += strStream.str();
+			}
+		}
+		closedir(dir);
+	}
+}
+
+std::map<std::string, std::map<std::string, std::string> > &server_config::parse_conf() {
+
+	std::string str;
+	std::stringstream strStream;
+
+	read_conf_folder(configs_dir, str);
 	std::regex re("(#.*[\\s]*$)");
 	str = std::regex_replace(str, re, "");
 
@@ -70,14 +92,5 @@ void			   server_config::parse_conf() {
 			config[key][m[1]] = m[2];
 		}
 	}
-
-    //this for loop just temporarely to see results
-	for (std::map<std::string, std::map<std::string, std::string> >::iterator it= config.begin(); it!= config.end(); ++it) {
-		if (it->second.empty())
-			continue;
-		std::cout << "==========" << it->first << "==========" << std::endl;
-		for (std::map<std::string, std::string>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-			std::cout << it2->first << " => " << it2->second << std::endl;
-		}
-	}
+	return config;
 }
