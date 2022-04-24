@@ -763,7 +763,8 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 			msg = make_server_reply(472, std::to_string(modes[i]) + " :is unknown mode char to me for " + target, c);
 		} else if (modes[i] == 'o') {
 			if (!it->second.is_oper(&c)) {
-				msg = make_server_reply(482, target + " :You are not channel operator", c);
+				std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
+				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 			} else {
 				if (idx < cmd.get_args().size() && nick_to_fd.find(cmd.get_args().at(idx)) != nick_to_fd.end()) {
 					int fd = nick_to_fd.find(cmd.get_args().at(idx))->second;
@@ -784,7 +785,8 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 			}
 		} else if (modes[i] == 'v') {
 			if (!it->second.is_oper(&c)) {
-				msg = make_server_reply(482, target + " :You are not channel operator", c);
+				std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
+				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 			} else {
 				if (idx < cmd.get_args().size() && nick_to_fd.find(cmd.get_args().at(idx)) != nick_to_fd.end()) {
 					int fd = nick_to_fd.find(cmd.get_args().at(idx))->second;
@@ -806,7 +808,8 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 		} else if (modes[i] == 'b') {
 			if (idx < cmd.get_args().size()) {
 				if (!it->second.is_oper(&c)) {
-					msg = make_server_reply(482, target + " :You are not channel operator", c);
+					std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
+					send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 				} else {
 					if (modifier == '+') {
 						if (it->second.add_ban(cmd.get_args().at(idx), c.get_nickname())) {
@@ -834,7 +837,8 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 			std::string msg;
 			if (idx < cmd.get_args().size()) {
 				if (!it->second.is_oper(&c)) {
-					msg = make_server_reply(482, target + " :You are not channel operator", c);
+					std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
+					send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 				} else if (modifier == '+') {
 					it->second.add_mode('k');
 					it->second.set_key(cmd.get_args().at(idx));
@@ -849,7 +853,8 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 			} else {
 				if (modifier == '-') {
 					if (!it->second.is_oper(&c)) {
-						msg = make_server_reply(482, target + " :You are not channel operator", c);
+						std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
+						send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 					} else if (it->second.remove_mode('k')) {
 						it->second.set_key("");
 						msg = ":" + c.to_string() + " MODE " + target + " -k *\r\n";
@@ -858,7 +863,8 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 			}
 		} else if (modes[i] == 'l') {
 			if (!it->second.is_oper(&c)) {
-				msg = make_server_reply(482, target + " :You are not channel operator", c);
+				std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
+				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 			} else {
 				if (idx < cmd.get_args().size()) {
 					long long limit = std::atoll(cmd.get_args().at(idx).c_str());
@@ -883,7 +889,8 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 		} else if (modes[i] == 'I') {
 			if (idx < cmd.get_args().size()) {
 				if (!it->second.is_oper(&c)) {
-					msg = make_server_reply(482, target + " :You are not channel operator", c);
+					std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
+					send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 				} else {
 					if (modifier == '-') {
 						if (it->second.remove_invite(cmd.get_args().at(idx))) {
@@ -910,7 +917,8 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 		} else if (modes[i] == 'e') {
 			if (idx < cmd.get_args().size()) {
 				if (!it->second.is_oper(&c)) {
-					msg = make_server_reply(482, target + " :You are not channel operator", c);
+					std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
+					send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 				} else {
 					if (modifier == '+') {
 						if (it->second.add_exception(cmd.get_args().at(idx), c.get_nickname())) {
@@ -937,7 +945,8 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 			}
 		} else if (std::string("imnt").find(modes[i]) != std::string::npos) {
 			if (!it->second.is_oper(&c)) {
-				msg = make_server_reply(482, target + " :You are not channel operator", c);
+				std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
+				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 			} else {
 				if (modifier == '-') {
 					if (it->second.remove_mode(modes[i])) {
