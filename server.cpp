@@ -427,12 +427,12 @@ int server::oper_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			reply = ":Password incorrect";
 			return 464;
 		}
-		reply = "";
 		if (c.is_oper() == false) {
-			reply += ":+o\r\n";
 			c.set_oper(true);
+			std::string msg = ":" + config.get_server_name() + " MODE " + c.get_nickname() + " :+o\r\n";
+			send(c.get_fd(), msg.c_str(), msg.size(), 0);
 		}
-		reply += ":You are now an IRC Operator\r\n";
+		reply = ":You are now an IRC Operator";
 		return 381;
 	}
 }
@@ -1322,6 +1322,9 @@ int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) 
 	}
 	if (!chans.empty()) {
 		msg += ":" + config.get_server_name() + " 319 " + c.get_nickname() + " " + nickname + " :" + chans + "\r\n";
+	}
+	if (c2.is_oper()) {
+		msg += ":" + config.get_server_name() + " 313 " + c.get_nickname() + " " + nickname + " :is an IRC operator\r\n";
 	}
 	msg += ":" + config.get_server_name() + " 378 " + c.get_nickname() + " " + nickname + " :is connecting from *@"
 			+ c2.get_host() + " " + c2.get_host() + "\r\n";
