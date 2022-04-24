@@ -70,7 +70,7 @@ void			   server_config::parse_conf() {
 			config[key][m[1]] = m[2];
 		}
 	}
-
+//this for loop just temporarely to see results
 	for (std::map<std::string, std::map<std::string, std::string> >::iterator it= config.begin(); it!= config.end(); ++it) {
 		if (it->second.empty())
 			continue;
