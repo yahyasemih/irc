@@ -7,5 +7,4 @@
 - resolve TODOs in files (important)
 - implement and complete the server_config class (or make it static and remove ability to create it from config file)
 - complete support of operators (important)
-- complete support of channel modes (very important)
-- implement all channel operations (very important)
+- improve ban/exception list for channel modes (currently in form of <nickname>, should a mask and <nickname>!<username>@host)
