@@ -79,7 +79,7 @@ private:
 
 	static command_map init_map();
 public:
-	server(int port, std::string password, std::string config_file = "");
+	server(int port, std::string password);
 	~server();
 
 	void start();

@@ -8,6 +8,7 @@
 #include <regex>
 #include <map>
 #include <unordered_map>
+#include <dirent.h>
 
 class server_config {
 public:
@@ -19,10 +20,10 @@ private:
 	std::string user_modes;
 	std::string channel_modes;
 	operator_map operators;
+	std::string configs_dir;
 	std::map<std::string, std::map<std::string, std::string> > config;
 public:
 	server_config();
-	server_config(const std::string &config_file);
 	~server_config();
 
 	const operator_map &get_operators() const;
@@ -31,7 +32,7 @@ public:
 	const std::string &get_version() const;
 	const std::string &get_user_modes() const;
 	const std::string &get_channel_modes() const;
-	void              parse_conf();
+	std::map<std::string, std::map<std::string, std::string> > &parse_conf();
 };
 
 #endif
