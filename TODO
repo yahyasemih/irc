@@ -5,3 +5,4 @@
 - complete support of operators (important)
 - improve ban/exception list for channel modes (currently in form of <nickname>, should a mask and <nickname>!<username>@host)
 - (maybe) support a/O/p/q/r/s channels modes
+- (maybe) add MOTD/RESTART commands
