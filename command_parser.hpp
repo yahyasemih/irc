@@ -30,7 +30,7 @@ enum command_type {
 	WHO,
 	WHOIS,
 	ISON,
-	INVALID_CMD // TODO: complete list of commands, add operator commands
+	INVALID_CMD
 };
 
 class command_parser {

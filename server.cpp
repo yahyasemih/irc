@@ -193,7 +193,7 @@ void server::accept_client() {
 	} else {
 		fcntl(new_socket, F_SETFL, O_NONBLOCK);
 		pollfd pf;
-		std::string host = inet_ntoa(addr.sin_addr); // TODO: reverse dns
+		std::string host = inet_ntoa(addr.sin_addr);
 		pf.fd = new_socket;
 		pf.events = POLLIN;
 		pollfds.push_back(pf);
@@ -524,7 +524,11 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		names_cmd(command_parser("NAMES " + chnl), c, msg);
 	} else {
 		if (!channels[chnl].is_in_channel(&c)) {
-			if (channels[chnl].is_banned(c.get_nickname())) {
+			if (channels[chnl].has_mode('k') && (cmd.get_args().size() != 2
+				|| cmd.get_args().at(1) != channels[chnl].get_key())) {
+				reply = chnl + " :Cannot join channel (+k) -- Wrong channel key";
+				return 475;
+			} else if (channels[chnl].is_banned(c.get_nickname())) {
 				reply = chnl + " :Cannot join channel (+b) -- You are banned";
 				return 474;
 			} else if (channels[chnl].size() == channels[chnl].get_limit()) {
@@ -560,7 +564,6 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		if (it->second.is_in_channel(&c)) {
 			std::string msg = ":" + c.to_string() + " QUIT :";
 			msg += (cmd.get_args().empty() ? c.get_nickname() : cmd.get_args().at(0)) + "\r\n";
-			// TODO: send also stats notice (probably not)
 			it->second.send_message(msg, &c);
 			it->second.remove_client(&c);
 			if (it->second.empty()) {
@@ -836,7 +839,6 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 					it->second.add_mode('k');
 					it->second.set_key(cmd.get_args().at(idx));
 					msg = ":" + c.to_string() + " MODE " + target + " +k " + cmd.get_args().at(idx) + "\r\n";
-					it->second.send_message(msg, nullptr);
 				} else {
 					if (it->second.remove_mode('k')) {
 						it->second.set_key("");
@@ -864,11 +866,9 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 						it->second.set_limit(limit);
 						it->second.add_mode('l');
 						msg = ":" + c.to_string() + " MODE " + target + " +l " + cmd.get_args().at(idx) + "\r\n";
-						it->second.send_message(msg, nullptr);
 					} else if (modifier == '-' && it->second.has_mode('l')) {
 						it->second.remove_mode('l');
 						msg = ":" + c.to_string() + " MODE " + target + " -l " + cmd.get_args().at(idx) + "\r\n";
-						it->second.send_message(msg, nullptr);
 					}
 					++idx;
 				} else {
@@ -876,7 +876,6 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 						if (it->second.has_mode('l')) {
 							it->second.remove_mode('l');
 							msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
-							it->second.send_message(msg, nullptr);
 						}
 					}
 				}
@@ -960,7 +959,6 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 }
 
 int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO: add channel modes
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
