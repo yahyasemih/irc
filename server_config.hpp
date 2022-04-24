@@ -2,6 +2,11 @@
 #define SERVER_CONFIG
 
 #include <string>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <regex>
+#include <map>
 #include <unordered_map>
 
 class server_config {
@@ -14,6 +19,7 @@ private:
 	std::string user_modes;
 	std::string channel_modes;
 	operator_map operators;
+	std::map<std::string, std::map<std::string, std::string> > config;
 public:
 	server_config();
 	server_config(const std::string &config_file);
@@ -25,6 +31,7 @@ public:
 	const std::string &get_version() const;
 	const std::string &get_user_modes() const;
 	const std::string &get_channel_modes() const;
+	void			  parse_conf();
 };
 
 #endif
