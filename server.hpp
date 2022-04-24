@@ -44,7 +44,7 @@ private:
 
 	void welcome_client(const client &c) const;
 	void accept_client();
-	void receive_from_client(client &c);
+	int receive_from_client(client &c);
 	std::string make_server_reply(int reply_code, const std::string &str, const client &c) const;
 	void clear_disconnected_clients(const std::vector<int> &disconnected);
 	std::string get_clients_without_channel() const;

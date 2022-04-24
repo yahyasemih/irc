@@ -201,11 +201,16 @@ void server::accept_client() {
 	}
 }
 
-void server::receive_from_client(client &c) {
+int server::receive_from_client(client &c) {
 	char buff[BUFFER_SIZE + 1];
 	int ret = recv(c.get_fd(), buff, BUFFER_SIZE, 0);
+	if (ret < 0) {
+		perror("Could receive from client : ");
+		return ret;
+	}
 	buff[ret] = '\0';
 	c.receive(buff);
+	return ret;
 }
 
 std::string server::make_server_reply(int reply_code, const std::string &str, const client &c) const {
