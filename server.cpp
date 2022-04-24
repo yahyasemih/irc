@@ -120,7 +120,9 @@ void server::start() {
 						receive_from_client(c);
 						while (c.has_command()) {
 							std::string reply;
-							int reply_code = handle_command(c.get_command(), c, reply);
+							std::string command = c.get_command();
+							std::cout << "Received command '" << command << "' from client " << c.get_fd() << std::endl;
+							int reply_code = handle_command(command, c, reply);
 							if (reply_code == -1) {
 								std::string final_reply = "ERROR " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
@@ -135,9 +137,7 @@ void server::start() {
 								std::string final_reply = "ERROR " + reply + "\r\n";
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
 							} else if (reply_code > 0 && reply_code <= 599) {
-								std::string final_reply = ":" + config.get_server_name() + " " + std::to_string(reply_code);
-								std::string nickname = c.get_nickname().empty() ? "*" : c.get_nickname();
-								final_reply += " " + nickname + " " + reply + "\r\n";
+								std::string final_reply = make_server_reply(reply_code, reply, c);
 								send(c.get_fd(), final_reply.c_str(), final_reply.size(), 0);
 							} else if (reply_code != 0 && !reply.empty()) {
 								send(c.get_fd(), reply.c_str(), reply.size(), 0);
@@ -174,16 +174,13 @@ void server::stop() {
 }
 
 void server::welcome_client(const client &c) const {
-	std::string msg = ":" + config.get_server_name() + " 001 " + c.get_nickname()
-					+ " :Welcome to the Internet Relay Network " + c.to_string() + "\r\n"
-			+ ":" + config.get_server_name() + " 002 " + c.get_nickname() + " :Your host is " + config.get_server_name()
-					+ ", running version " + config.get_version() + "\r\n"
-			+ ":" + config.get_server_name() + " 003 " + c.get_nickname() + " :This server has been started "
-					+ start_time + "\r\n"
-			+ ":" + config.get_server_name() + " 004 " + c.get_nickname() + " " + config.get_server_name() + " "
-					+ config.get_version() + " " +config.get_user_modes() + " " + config.get_channel_modes() + "\r\n"
-			+ ":" + config.get_server_name() + " 251 " + c.get_nickname() + " :There are " + std::to_string(num_users)
-					+ " users and 0 services on 1 servers\r\n";
+	std::string msg = make_server_reply(1, ":Welcome to the Internet Relay Network " + c.to_string(), c);
+	msg += make_server_reply(2, ":Your host is " + config.get_server_name() + ", running version "
+			+ config.get_version(), c);
+	msg += make_server_reply(3, ":This server has been started " + start_time, c);
+	msg += make_server_reply(4, config.get_server_name() + " " + config.get_version() + " " + config.get_user_modes()
+			+ " " + config.get_channel_modes(), c);
+	msg += make_server_reply(251, ":There are " + std::to_string(num_users) + " users and 0 services on 1 servers", c);
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 }
 
@@ -209,6 +206,18 @@ void server::receive_from_client(client &c) {
 	int ret = recv(c.get_fd(), buff, BUFFER_SIZE, 0);
 	buff[ret] = '\0';
 	c.receive(buff);
+}
+
+std::string server::make_server_reply(int reply_code, const std::string &str, const client &c) const {
+	std::string result;
+	std::string reply_code_str = std::to_string(reply_code);
+	if (reply_code_str.size() < 3) {
+		reply_code_str = std::string(3 - reply_code_str.size(), '0') + reply_code_str;
+	}
+	std::string nickname = c.get_nickname().empty() ? "*" : c.get_nickname();
+	result = ":" + config.get_server_name() + " " + reply_code_str + " " + nickname + " " + str;
+	result += "\r\n";
+	return result;
 }
 
 void server::clear_disconnected_clients(const std::vector<int> &disconnected) {
@@ -515,7 +524,13 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		names_cmd(command_parser("NAMES " + chnl), c, msg);
 	} else {
 		if (!channels[chnl].is_in_channel(&c)) {
-			if (!channels[chnl].can_join(&c)) {
+			if (channels[chnl].is_banned(c.get_nickname())) {
+				reply = chnl + " :Cannot join channel (+b) -- You are banned";
+				return 474;
+			} else if (channels[chnl].size() == channels[chnl].get_limit()) {
+				reply = chnl + " :Cannot join channel (+l) -- Channel is full, try later";
+				return 471;
+			} else if (!channels[chnl].can_join(&c)) {
 				if (c.is_restricted()) {
 					reply = ":Your connection is restricted";
 					return 484;
@@ -523,9 +538,6 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 					reply = chnl + " :Cannot join channel (+i) -- Invited users only";
 					return 473;
 				}
-			} else if (channels[chnl].size() == channels[chnl].get_limit()) {
-				reply = chnl + " :Cannot join channel (+l) -- Channel is full, try later";
-				return 471;
 			}
 			channels[chnl].remove_invitation(&c);
 			channels[chnl].add_client(&c);
@@ -669,7 +681,7 @@ int server::user_mode_cmd(const command_parser &cmd, client &c, std::string &rep
 			if (mode[i] == '-' || mode[i] == '+') {
 				modifier = mode[i];
 			} else if (mode[i] == 'a') {
-				msg += ":" + config.get_server_name() + " 481 " + target + " :Permission denied\r\n";
+				msg += make_server_reply(481, target + " :Permission denied", c);
 			} else if (mode[i] == 'o') {
 				if (c.is_oper() || c.has_mode(mode[i])) {
 					if (modifier == '-') {
@@ -682,12 +694,12 @@ int server::user_mode_cmd(const command_parser &cmd, client &c, std::string &rep
 							plus_result_mode += mode[i];
 							c.add_mode(mode[i]);
 						} else {
-							msg += ":" + config.get_server_name() + " 481 " + target + " :Permission denied\r\n";
+							msg += make_server_reply(481, target + " :Permission denied", c);
 						}
 					}
 				} else {
 					if (modifier == '+') {
-						msg += ":" + config.get_server_name() + " 481 " + target + " :Permission denied\r\n";
+						msg += make_server_reply(481, target + " :Permission denied", c);
 					}
 				}
 			} else if (strchr("iwrs", mode[i]) != nullptr) {
@@ -703,7 +715,7 @@ int server::user_mode_cmd(const command_parser &cmd, client &c, std::string &rep
 					}
 				}
 			} else {
-				msg += ":" + config.get_server_name() + " 501 " + target + " :Unknown mode \"" + mode[i] + "\"\r\n";
+				msg += make_server_reply(501, target + " :Unknown mode \"" + mode[i] + "\"", c);
 			}
 		}
 	} else {
@@ -724,8 +736,226 @@ int server::user_mode_cmd(const command_parser &cmd, client &c, std::string &rep
 	return 0;
 }
 
-int server::channel_mode_cmd(const command_parser &, client &, std::string &) {
-	// TODO
+int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
+	const std::string &target = cmd.get_args().at(0);
+	size_t idx = 2;
+	channel_map::iterator it = channels.find(target);
+	if (it == channels.end()) {
+		reply = target + " :No such nick or channel name";
+		return 401;
+	} else if (cmd.get_args().size() == 1) {
+		std::string msg = make_server_reply(324, target + " " + it->second.get_mode(), c);
+		msg += make_server_reply(329, target + " " + std::to_string(it->second.get_created_at()), c);
+		send(c.get_fd(), msg.c_str(), msg.size(), 0);
+		return 0;
+	}
+
+	const std::string modes = cmd.get_args().at(1);
+	char modifier = '+';
+	for (size_t i = 0; i < modes.size(); ++i) {
+		std::string msg;
+		if (modes[i] == '-' || modes[i] == '+') {
+			modifier = modes[i];
+		} else if (config.get_channel_modes().find(modes[i]) == std::string::npos) {
+			msg = make_server_reply(472, std::to_string(modes[i]) + " :is unknown mode char to me for " + target, c);
+		} else if (modes[i] == 'o') {
+			if (!it->second.is_oper(&c)) {
+				msg = make_server_reply(482, target + " :You are not channel operator", c);
+			} else {
+				if (idx < cmd.get_args().size() && nick_to_fd.find(cmd.get_args().at(idx)) != nick_to_fd.end()) {
+					int fd = nick_to_fd.find(cmd.get_args().at(idx))->second;
+					client &other = clients.find(fd)->second;
+					if (modifier == '+') {
+						if (it->second.add_oper(&other)) {
+							msg = ":" + c.to_string() + " MODE " + target + " +o " + cmd.get_args().at(idx) + "\r\n";
+						}
+					} else {
+						if (it->second.remove_oper(&other)) {
+							msg = ":" + c.to_string() + " MODE " + target + " -o " + cmd.get_args().at(idx) + "\r\n";
+						}
+					}
+					++idx;
+				} else if (idx < cmd.get_args().size() && nick_to_fd.find(cmd.get_args().at(idx)) == nick_to_fd.end()) {
+					msg = make_server_reply(401, cmd.get_args().at(idx) + " :No such nick or channel name", c);
+				}
+			}
+		} else if (modes[i] == 'v') {
+			if (!it->second.is_oper(&c)) {
+				msg = make_server_reply(482, target + " :You are not channel operator", c);
+			} else {
+				if (idx < cmd.get_args().size() && nick_to_fd.find(cmd.get_args().at(idx)) != nick_to_fd.end()) {
+					int fd = nick_to_fd.find(cmd.get_args().at(idx))->second;
+					client &other = clients.find(fd)->second;
+					if (modifier == '+') {
+						if (it->second.add_speaker(&other)) {
+							msg = ":" + c.to_string() + " MODE " + target + " +v " + cmd.get_args().at(idx) + "\r\n";
+						}
+					} else {
+						if (it->second.remove_speaker(&other)) {
+							msg = ":" + c.to_string() + " MODE " + target + " -v " + cmd.get_args().at(idx) + "\r\n";
+						}
+					}
+					++idx;
+				} else if (idx < cmd.get_args().size() && nick_to_fd.find(cmd.get_args().at(idx)) == nick_to_fd.end()) {
+					msg = make_server_reply(401, cmd.get_args().at(idx) + " :No such nick or channel name", c);
+				}
+			}
+		} else if (modes[i] == 'b') {
+			if (idx < cmd.get_args().size()) {
+				if (!it->second.is_oper(&c)) {
+					msg = make_server_reply(482, target + " :You are not channel operator", c);
+				} else {
+					if (modifier == '+') {
+						if (it->second.add_ban(cmd.get_args().at(idx), c.get_nickname())) {
+							msg = ":" + c.to_string() + " MODE " + target + " +b " + cmd.get_args().at(idx) + "\r\n";
+						}
+					} else {
+						if (it->second.remove_ban(cmd.get_args().at(idx))) {
+							msg = ":" + c.to_string() + " MODE " + target + " -b " + cmd.get_args().at(idx) + "\r\n";
+						}
+					}
+				}
+				++idx;
+			} else {
+				const channel::ban_list_t &ban_list = it->second.get_ban_list();
+				std::string client_msg;
+				for (channel::ban_list_t::const_iterator it = ban_list.begin(); it != ban_list.end(); ++it) {
+					client_msg += ":" + config.get_server_name() + " 367 " + c.get_nickname() + " " + target;
+					client_msg += " " + it->first + " " + it->second.by + " " + std::to_string(it->second.ts) + "\r\n";
+				}
+				client_msg += ":" + config.get_server_name() + " 368 " + c.get_nickname() + " " + target;
+				client_msg += " :End of channel ban list\r\n";
+				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
+			}
+		} else if (modes[i] == 'k') {
+			std::string msg;
+			if (idx < cmd.get_args().size()) {
+				if (!it->second.is_oper(&c)) {
+					msg = make_server_reply(482, target + " :You are not channel operator", c);
+				} else if (modifier == '+') {
+					it->second.add_mode('k');
+					it->second.set_key(cmd.get_args().at(idx));
+					msg = ":" + c.to_string() + " MODE " + target + " +k " + cmd.get_args().at(idx) + "\r\n";
+					it->second.send_message(msg, nullptr);
+				} else {
+					if (it->second.remove_mode('k')) {
+						it->second.set_key("");
+						msg = ":" + c.to_string() + " MODE " + target + " -k *\r\n";
+					}
+				}
+				++idx;
+			} else {
+				if (modifier == '-') {
+					if (!it->second.is_oper(&c)) {
+						msg = make_server_reply(482, target + " :You are not channel operator", c);
+					} else if (it->second.remove_mode('k')) {
+						it->second.set_key("");
+						msg = ":" + c.to_string() + " MODE " + target + " -k *\r\n";
+					}
+				}
+			}
+		} else if (modes[i] == 'l') {
+			if (!it->second.is_oper(&c)) {
+				msg = make_server_reply(482, target + " :You are not channel operator", c);
+			} else {
+				if (idx < cmd.get_args().size()) {
+					long long limit = std::atoll(cmd.get_args().at(idx).c_str());
+					if (limit > 0 && modifier == '+') {
+						it->second.set_limit(limit);
+						it->second.add_mode('l');
+						msg = ":" + c.to_string() + " MODE " + target + " +l " + cmd.get_args().at(idx) + "\r\n";
+						it->second.send_message(msg, nullptr);
+					} else if (modifier == '-' && it->second.has_mode('l')) {
+						it->second.remove_mode('l');
+						msg = ":" + c.to_string() + " MODE " + target + " -l " + cmd.get_args().at(idx) + "\r\n";
+						it->second.send_message(msg, nullptr);
+					}
+					++idx;
+				} else {
+					if (modifier == '-') {
+						if (it->second.has_mode('l')) {
+							it->second.remove_mode('l');
+							msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
+							it->second.send_message(msg, nullptr);
+						}
+					}
+				}
+			}
+		} else if (modes[i] == 'I') {
+			if (idx < cmd.get_args().size()) {
+				if (!it->second.is_oper(&c)) {
+					msg = make_server_reply(482, target + " :You are not channel operator", c);
+				} else {
+					if (modifier == '-') {
+						if (it->second.remove_invite(cmd.get_args().at(idx))) {
+							msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
+						}
+					} else {
+						if (it->second.add_invite(cmd.get_args().at(idx), c.get_nickname())) {
+							msg = ":" + c.to_string() + " MODE " + target + " +" + modes[i] + "\r\n";
+						}
+					}
+				}
+				++idx;
+			} else {
+				const channel::invite_list_t &invite_list = it->second.get_invite_list();
+				std::string client_msg;
+				for (channel::invite_list_t::const_iterator it = invite_list.begin(); it != invite_list.end(); ++it) {
+					client_msg += ":" + config.get_server_name() + " 346 " + c.get_nickname() + " " + target;
+					client_msg += " " + it->first + " " + it->second.by + " " + std::to_string(it->second.ts) + "\r\n";
+				}
+				client_msg += ":" + config.get_server_name() + " 347 " + c.get_nickname() + " " + target;
+				client_msg += " :End of channel invite list\r\n";
+				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
+			}
+		} else if (modes[i] == 'e') {
+			if (idx < cmd.get_args().size()) {
+				if (!it->second.is_oper(&c)) {
+					msg = make_server_reply(482, target + " :You are not channel operator", c);
+				} else {
+					if (modifier == '+') {
+						if (it->second.add_exception(cmd.get_args().at(idx), c.get_nickname())) {
+							msg = ":" + c.to_string() + " MODE " + target + " +" + modes[i] + "\r\n";
+						}
+					} else {
+						if (it->second.remove_exception(cmd.get_args().at(idx))) {
+							msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
+						}
+					}
+				}
+				++idx;
+			} else {
+				const channel::exception_list_t &exception_list = it->second.get_exception_list();
+				std::string client_msg;
+				channel::exception_list_t::const_iterator it = exception_list.begin();
+				for (; it != exception_list.end(); ++it) {
+					client_msg += ":" + config.get_server_name() + " 348 " + c.get_nickname() + " " + target;
+					client_msg += " " + it->first + " " + it->second.by + " " + std::to_string(it->second.ts) + "\r\n";
+				}
+				client_msg += ":" + config.get_server_name() + " 349 " + c.get_nickname() + " " + target;
+				client_msg += " :End of channel exception list\r\n";
+				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
+			}
+		} else if (std::string("imnt").find(modes[i]) != std::string::npos) {
+			if (!it->second.is_oper(&c)) {
+				msg = make_server_reply(482, target + " :You are not channel operator", c);
+			} else {
+				if (modifier == '-') {
+					if (it->second.remove_mode(modes[i])) {
+						msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
+					}
+				} else {
+					if (it->second.add_mode(modes[i])) {
+						msg = ":" + c.to_string() + " MODE " + target + " +" + modes[i] + "\r\n";
+					}
+				}
+			}
+		}
+		if (!msg.empty()) {
+			it->second.send_message(msg, nullptr);
+		}
+	}
+
 	return 0;
 }
 
@@ -734,7 +964,7 @@ int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
-	} else if (cmd.get_args().empty() || cmd.get_args().size() > 2) {
+	} else if (cmd.get_args().empty()) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
@@ -750,10 +980,10 @@ int server::mode_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	if (cmd.get_args().size() == 1) {
 		if (target == c.get_nickname()) {
 			reply = c.get_mode();
+			return 221;
 		} else {
-			// TODO: add get mode to channel;
+			return channel_mode_cmd(cmd, c, reply);
 		}
-		return 221;
 	} else {
 		if (target == c.get_nickname()) {
 			return user_mode_cmd(cmd, c, reply);
@@ -780,11 +1010,10 @@ int server::info_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		reply = cmd.get_args().at(0) + " :No such server";
 		return 402;
 	}
-	std::string msg = ":" + config.get_server_name() + " 371 " + c.get_nickname() + " :" + config.get_version() + "\r\n";
-	msg += ":" + config.get_server_name() + " 371 " + c.get_nickname() + " :Birth Date: " + __DATE__ + " at "
-			+ __TIME__ + "\r\n";
-	msg += ":" + config.get_server_name() + " 371 " + c.get_nickname() + " :On-line since: " + start_time + "\r\n";
-	msg += ":" + config.get_server_name() + " 374 " + c.get_nickname() + " :End of INFO list\r\n";
+	std::string msg = make_server_reply(371, ":" + config.get_version(), c);
+	msg += make_server_reply(371, ":Birth Date: " + std::string(__DATE__) + " at " + std::string(__TIME__), c);
+	msg += make_server_reply(371, ":On-line since: " + start_time, c);
+	msg += make_server_reply(371, ":End of INFO list", c);
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	return 0;
 }
@@ -842,6 +1071,9 @@ int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			nicknames.push_back(nickname.substr(0, nickname.find(",")));
 			nickname = nickname.substr(nicknames.back().size() + 1);
 		}
+		if (!nickname.empty()) {
+			nicknames.push_back(nickname);
+		}
 	} else {
 		nicknames.push_back(nickname);
 	}
@@ -878,7 +1110,6 @@ int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO : (maybe) handle multiple channels
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
@@ -899,9 +1130,24 @@ int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) 
 		}
 		msg += ":" + server + " 366 " + nick + " * :End of NAMES list\r\n";
 	} else {
-		const std::string &channel = cmd.get_args().at(0);
-		if (channels.find(channel) != channels.end()) {
-			msg = ":" + server + " 353 " + nick + " = " + channel + " :" + channels[channel].to_string() + "\r\n";
+		std::string channel = cmd.get_args().at(0);
+		std::vector<std::string> channels;
+		if (channel.find(",") != std::string::npos) {
+			while (channel.find(",") != std::string::npos) {
+				channels.push_back(channel.substr(0, channel.find(",")));
+				channel = channel.substr(channels.back().size() + 1);
+			}
+			if (!channel.empty()) {
+				channels.push_back(channel);
+			}
+		} else {
+			channels.push_back(channel);
+		}
+		for (size_t i = 0; i < channels.size(); ++i) {
+			if (this->channels.find(channels[i]) != this->channels.end()) {
+				msg += ":" + server + " 353 " + nick + " = " + channel + " :" + this->channels[channels[i]].to_string();
+				msg += "\r\n";
+			}
 		}
 		msg += ":" + server + " 366 " + nick + " " + channel + " :End of NAMES list\r\n";
 	}

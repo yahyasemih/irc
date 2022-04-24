@@ -66,6 +66,7 @@
 		"regex": "cpp",
 		"set": "cpp",
 		"unordered_set": "cpp",
-		"__functional_03": "cpp"
+		"__functional_03": "cpp",
+		"queue": "cpp"
 	}
 }

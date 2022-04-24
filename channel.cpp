@@ -1,9 +1,10 @@
 #include "channel.hpp"
 
-channel::channel() {
+channel::channel() : created_at(std::chrono::system_clock::now().time_since_epoch().count() / 1000000) {
 }
 
-channel::channel(const std::string &key) : key(key) {
+channel::channel(const std::string &key) : key(key),
+		created_at(std::chrono::system_clock::now().time_since_epoch().count() / 1000000) {
 }
 
 channel::~channel() {
@@ -49,7 +50,8 @@ bool channel::can_speak(client *c) const {
 }
 
 bool channel::can_join(client *c) const {
-	return !has_mode('i') || invitees.find(c) != invitees.end();
+	return !has_mode('i') || invitees.find(c) != invitees.end()
+			|| invite_list.find(c->get_nickname()) != invite_list.end();
 }
 
 bool channel::can_set_topic(client *c) const {
@@ -64,8 +66,16 @@ bool channel::can_kick(client *c) const {
 	return (!c->is_restricted() && operators.find(c) != operators.end());
 }
 
+bool channel::is_oper(client *c) const {
+	return operators.find(c) != operators.cend();
+}
+
 size_t channel::get_limit() const {
 	return has_mode('l') ? limit : std::numeric_limits<size_t>::max();
+}
+
+void channel::set_limit(size_t l) {
+	limit = l;
 }
 
 size_t channel::size() const {
@@ -91,26 +101,36 @@ std::string channel::to_string() const {
 
 std::string channel::get_mode() const {
 	std::string result = "+";
+	std::string args;
 	for (std::unordered_set<char>::const_iterator it = mode.cbegin(); it != mode.cend(); ++it) {
 		result += *it;
+		if (*it == 'l') {
+			args += " " + std::to_string(get_limit());
+		} else if (*it == 'k') {
+			args += " " + get_key();
+		}
 	}
-	return result;
+	return result + args;
 }
 
 bool channel::has_mode(char c) const {
 	return mode.find(c) != mode.end();
 }
 
-void channel::add_mode(char c) {
+bool channel::add_mode(char c) {
 	if (!has_mode(c)) {
 		mode.insert(c);
+		return true;
 	}
+	return false;
 }
 
-void channel::remove_mode(char c) {
+bool channel::remove_mode(char c) {
 	if (has_mode(c)) {
 		mode.erase(c);
+		return true;
 	}
+	return false;
 }
 
 std::string channel::get_user_prefix(client *c) const {
@@ -133,4 +153,113 @@ void channel::set_topic(const std::string &topic) {
 
 const std::string &channel::get_topic() const {
 	return topic;
+}
+
+bool channel::add_oper(client *c) {
+	return operators.insert(c).second;
+}
+
+bool channel::remove_oper(client *c) {
+	if (operators.find(c) != operators.end()) {
+		operators.erase(c);
+		return true;
+	}
+	return false;
+}
+
+bool channel::add_speaker(client *c) {
+	return speakers.insert(c).second;
+}
+
+bool channel::remove_speaker(client *c) {
+	if (speakers.find(c) != speakers.end()) {
+		speakers.erase(c);
+		return true;
+	}
+	return false;
+}
+
+bool channel::add_ban(const std::string &str, std::string by) {
+	if (ban_list.find(str) == ban_list.end()) {
+		entry e;
+		e.by = by;
+		e.ts = std::chrono::system_clock::now().time_since_epoch().count() / 1000000;
+		ban_list.insert(std::make_pair(str, e));
+		return true;
+	}
+	return false;
+}
+
+bool channel::remove_ban(const std::string &str) {
+	if (ban_list.find(str) != ban_list.end()) {
+		ban_list.erase(str);
+		return true;
+	}
+	return false;
+}
+
+bool channel::add_exception(const std::string &str, std::string by) {
+	if (exception_list.find(str) == exception_list.end()) {
+		entry e;
+		e.by = by;
+		e.ts = std::chrono::system_clock::now().time_since_epoch().count() / 1000000;
+		exception_list.insert(std::make_pair(str, e));
+		return true;
+	}
+	return false;
+}
+
+bool channel::remove_exception(const std::string &str) {
+	if (exception_list.find(str) != exception_list.end()) {
+		exception_list.erase(str);
+		return true;
+	}
+	return false;
+}
+
+bool channel::add_invite(const std::string &str, std::string by) {
+	if (invite_list.find(str) == invite_list.end()) {
+		entry e;
+		e.by = by;
+		e.ts = std::chrono::system_clock::now().time_since_epoch().count() / 1000000;
+		invite_list.insert(std::make_pair(str, e));
+		return true;
+	}
+	return false;
+}
+
+bool channel::remove_invite(const std::string &str) {
+	if (invite_list.find(str) != invite_list.end()) {
+		invite_list.erase(str);
+		return true;
+	}
+	return false;
+}
+
+const channel::ban_list_t &channel::get_ban_list() const {
+	return ban_list;
+}
+
+const channel::exception_list_t &channel::get_exception_list() const {
+	return exception_list;
+}
+
+const channel::invite_list_t &channel::get_invite_list() const {
+	return invite_list;
+}
+
+void channel::set_key(const std::string &k) {
+	key = k;
+}
+
+const std::string &channel::get_key() const {
+	return key;
+}
+
+long long channel::get_created_at() const {
+	return created_at;
+}
+
+bool channel::is_banned(const std::string &nickname) const {
+	return ban_list.find(nickname) != ban_list.end() && exception_list.find(nickname) == exception_list.end();
 }
