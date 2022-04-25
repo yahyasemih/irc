@@ -1,9 +1,10 @@
 #include "server_config.hpp"
 
+const std::regex server_config::regex_clean_comments = std::regex("(#.*[\\s]*$)");
+const std::regex server_config::regex_is_key = std::regex("^\\[([A-Za-z]+)\\]$");
+const std::regex server_config::regex_parse_value("^\\s*([^\\s;]\\S+)\\s*=\\s*\"([^\"]*).*$");
+
 server_config::server_config() : 
-		regex_clean_comments("(#.*[\\s]*$)"),
-		regex_is_key("^\\[([A-Za-z]+)\\]$"),
-		regex_parse_value("^\\s*([^\\s;]\\S+)\\s*=\\s*(.*)$"),
 		server_name("irc.1337.ma"),
 		server_info("This an IRC server made in 1337 school"),
 		version("leet-irc 1.0.0"),
@@ -68,7 +69,7 @@ void				read_conf_folder(const std::string &configs_dir, std::string &str) {
 	}
 }
 
-std::multimap<std::string, std::unordered_map<std::string, std::string> > &server_config::parse_conf() {
+void				server_config::parse_conf() {
 
 	std::string str;
 	std::stringstream strStream;
@@ -89,8 +90,8 @@ std::multimap<std::string, std::unordered_map<std::string, std::string> > &serve
 		} else if (std::regex_match(line, regex_parse_value)) {
 			std::smatch m;
 			std::regex_search(line, m, regex_parse_value);
-			(--config.equal_range(key).second)->second[m[1]] = m[2];
+			if (config.find(key) != config.end())
+				(--config.equal_range(key).second)->second[m[1]] = m[2];
 		}
 	}
-	return config;
 }
