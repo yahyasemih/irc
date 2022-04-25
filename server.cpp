@@ -32,6 +32,9 @@ server::command_map server::init_map() {
 }
 
 const server::command_map server::str_to_cmd = init_map();
+const std::regex server::nickname_rule = std::regex("^[\\[\\]\\`_^{\\|}a-zA-Z][\\[\\]\\`_^{\\|}\\-a-zA-Z0-9]{0,8}$");
+const std::regex server::username_rule = std::regex("^[^@\\! ]+$");
+const std::regex server::channel_rule = std::regex("^[#&+][^: \a]+$");
 
 const server::command_function server::command_functions[INVALID_CMD] = {
 	&server::nick_cmd,
@@ -295,19 +298,10 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 461;
 	}
 	std::string nickname = cmd.get_args().at(0);
-	if (nickname.empty() || nickname.size() > 9
-			|| (std::string("[]\\`_^{|}").find(nickname[0]) == std::string::npos && !isalpha(nickname[0]))) {
+	if (!std::regex_match(nickname, nickname_rule)) {
 		reply = nickname + " :Erroneous nickname";
 		return 432;
-	} else {
-		for (size_t i = 1; i < nickname.size(); ++i) {
-			if (std::string("[]\\`_^{|}-").find(nickname[i]) == std::string::npos && !isalnum(nickname[i])) {
-				reply = nickname + " :Erroneous nickname";
-				return 432;
-			}
-		}
-	}
-	if (!c.get_username().empty()) {
+	} else if (!c.get_username().empty()) {
 		if (c.get_pass() != password) {
 			reply = ":Password incorrect";
 			return -1;
@@ -372,8 +366,7 @@ int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	std::string username = cmd.get_args().at(0);
 	int mode = std::atoi(cmd.get_args().at(1).c_str());
 	std::string realname = cmd.get_args().at(3);
-	size_t npos = std::string::npos;
-	if (username.find("@") != npos || username.find("!") != npos || username.find(" ") != npos) {
+	if (!std::regex_match(username, username_rule)) {
 		reply = ":Invalid user name";
 		return -1;
 	} else if (!c.get_nickname().empty()) {
@@ -519,8 +512,7 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 0; // No reply to send, already sent by channel
 	}
 	std::string chnl = cmd.get_args().at(0);
-	if (std::string("#+&").find(chnl[0]) == std::string::npos || chnl.find(":") != std::string::npos
-			|| chnl.find(" ") != std::string::npos || chnl.find("\b") != std::string::npos) {
+	if (!std::regex_match(chnl, channel_rule)) {
 		reply = chnl + " :No such channel";
 		return 403;
 	} else if (channels.find(chnl) == channels.end()) {

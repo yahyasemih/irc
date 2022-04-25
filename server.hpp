@@ -10,9 +10,10 @@
 #include <netdb.h>
 
 #include <iostream>
-#include <vector>
-#include <unordered_map>
+#include <regex>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "client.hpp"
 #include "channel.hpp"
@@ -29,6 +30,9 @@ private:
 	static const int BUFFER_SIZE = 100;
 	static const command_map str_to_cmd;
 	static const command_function command_functions[INVALID_CMD];
+	static const std::regex nickname_rule;
+	static const std::regex username_rule;
+	static const std::regex channel_rule;
 
 	std::string password;
 	std::vector<pollfd> pollfds;
