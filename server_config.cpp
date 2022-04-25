@@ -3,21 +3,21 @@
 const std::regex server_config::regex_clean_comments = std::regex("(#.*[\\s]*$)");
 const std::regex server_config::regex_is_key = std::regex("^\\[([A-Za-z]+)\\]$");
 const std::regex server_config::regex_parse_value("^\\s*([^\\s;]\\S+)\\s*=\\s*\"([^\"]*).*$");
+const std::string server_config::configs_dir = "./config";
 
-server_config::server_config() : 
+server_config::server_config() :
 		server_name("irc.1337.ma"),
 		server_info("This an IRC server made in 1337 school"),
 		version("leet-irc 1.0.0"),
 		user_modes("aioOrsw"),
-		channel_modes("ovimntklbeI"),
-		configs_dir("./config") {
+		channel_modes("ovimntklbeI") {
 			parse_conf();
-			//this for loop just temporarely to see results
-			for (std::multimap<std::string, std::unordered_map<std::string, std::string> >::iterator it= config.begin(); it!= config.end(); ++it) {
+			// TODO: remove this for loop just temporarely to see results
+			for (config_map::iterator it= config.begin(); it!= config.end(); ++it) {
 				if (it->second.empty())
 					continue;
 				std::cout << "==========" << it->first << "==========" << std::endl;
-				for (std::unordered_map<std::string, std::string>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+				for (config_entry::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
 					std::cout << it2->first << " => " << it2->second << std::endl;
 				}
 			}
@@ -50,7 +50,7 @@ const std::string &server_config::get_channel_modes() const {
 	return channel_modes;
 }
 
-void				read_conf_folder(const std::string &configs_dir, std::string &str) {
+static void read_conf_folder(const std::string &configs_dir, std::string &str) {
 	DIR		*dir;
 	struct	dirent *ent;
 
@@ -69,7 +69,7 @@ void				read_conf_folder(const std::string &configs_dir, std::string &str) {
 	}
 }
 
-void				server_config::parse_conf() {
+void server_config::parse_conf() {
 
 	std::string str;
 	std::stringstream strStream;
@@ -90,8 +90,9 @@ void				server_config::parse_conf() {
 		} else if (std::regex_match(line, regex_parse_value)) {
 			std::smatch m;
 			std::regex_search(line, m, regex_parse_value);
-			if (config.find(key) != config.end())
+			if (config.find(key) != config.end()) {
 				(--config.equal_range(key).second)->second[m[1]] = m[2];
+			}
 		}
 	}
 }

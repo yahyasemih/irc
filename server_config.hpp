@@ -12,19 +12,22 @@
 
 class server_config {
 public:
-	typedef std::unordered_map<std::string, std::string> operator_map;
+	typedef std::unordered_map<std::string, std::string> config_entry;
+	typedef config_entry operator_map;
+	typedef std::multimap<std::string, std::unordered_map<std::string, std::string> > config_map;
 private:
 	static const std::regex regex_clean_comments;
 	static const std::regex regex_is_key;
 	static const std::regex regex_parse_value;
+	static const std::string configs_dir;
+
 	std::string server_name;
 	std::string server_info;
 	std::string version;
 	std::string user_modes;
 	std::string channel_modes;
 	operator_map operators;
-	std::string configs_dir;
-	std::multimap<std::string, std::unordered_map<std::string, std::string> > config;
+	config_map config;
 public:
 	server_config();
 	~server_config();
@@ -35,7 +38,7 @@ public:
 	const std::string &get_version() const;
 	const std::string &get_user_modes() const;
 	const std::string &get_channel_modes() const;
-	void			  parse_conf();
+	void parse_conf();
 };
 
 #endif
