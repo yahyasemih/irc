@@ -297,12 +297,12 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	}
 	std::string nickname = cmd.get_args().at(0);
 	if (nickname.empty() || nickname.size() > 9
-			|| (strchr("[]\\`_^{|}", nickname[0]) == nullptr && !isalpha(nickname[0]))) {
+			|| (std::string("[]\\`_^{|}").find(nickname[0]) == std::string::npos && !isalpha(nickname[0]))) {
 		reply = nickname + " :Erroneous nickname";
 		return 432;
 	} else {
 		for (size_t i = 1; i < nickname.size(); ++i) {
-			if (strchr("[]\\`_^{|}-", nickname[i]) == nullptr && !isalnum(nickname[i])) {
+			if (std::string("[]\\`_^{|}-").find(nickname[i]) == std::string::npos && !isalnum(nickname[i])) {
 				reply = nickname + " :Erroneous nickname";
 				return 432;
 			}
@@ -373,7 +373,11 @@ int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	std::string username = cmd.get_args().at(0);
 	int mode = std::atoi(cmd.get_args().at(1).c_str());
 	std::string realname = cmd.get_args().at(3);
-	if (!c.get_nickname().empty()) {
+	size_t npos = std::string::npos;
+	if (username.find("@") != npos || username.find("!") != npos || username.find(" ") != npos) {
+		reply = ":Invalid user name";
+		return -1;
+	} else if (!c.get_nickname().empty()) {
 		if (c.get_pass() != password) {
 			reply = ":Password incorrect";
 			return -1;
@@ -516,7 +520,8 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 0; // No reply to send, already sent by channel
 	}
 	std::string chnl = cmd.get_args().at(0);
-	if (strchr("#+&", chnl[0]) == nullptr || chnl.find(":") != std::string::npos) {
+	if (std::string("#+&").find(chnl[0]) == std::string::npos || chnl.find(":") != std::string::npos
+			|| chnl.find(" ") != std::string::npos || chnl.find("\b") != std::string::npos) {
 		reply = chnl + " :No such channel";
 		return 403;
 	} else if (channels.find(chnl) == channels.end()) {
@@ -710,7 +715,7 @@ int server::user_mode_cmd(const command_parser &cmd, client &c, std::string &rep
 						msg += make_server_reply(481, target + " :Permission denied", c);
 					}
 				}
-			} else if (strchr("iwrs", mode[i]) != nullptr) {
+			} else if (std::string("iwrs").find(mode[i]) != std::string::npos) {
 				if (modifier == '-') {
 					if (c.has_mode(mode[i])) {
 						minus_result_mode += mode[i];
@@ -1269,7 +1274,7 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 461;
 	}
 	std::string to_search = cmd.get_args().empty() ? "*" : cmd.get_args().at(0);
-	if (strchr("#+&", to_search[0]) != nullptr) {
+	if (std::string("#+&").find(to_search[0]) != std::string::npos) {
 		channel_map::iterator channel = channels.find(to_search);
 		if (channel != channels.end()) {
 			const std::set<client *> clients = channel->second.get_clients();
