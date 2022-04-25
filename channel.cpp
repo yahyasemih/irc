@@ -264,5 +264,7 @@ long long channel::get_created_at() const {
 
 bool channel::is_banned(client *c) const {
 	const std::string &nickname = c->get_nickname();
-	return ban_list.find(nickname) != ban_list.end() && exception_list.find(nickname) == exception_list.end();
+	const std::string client_str = "*!~" + c->get_username() + "@" + c->get_host();
+	return (ban_list.find(nickname) != ban_list.end() && exception_list.find(nickname) == exception_list.end())
+			|| (ban_list.find(client_str) != ban_list.end() && exception_list.find(client_str) == exception_list.end());
 }
