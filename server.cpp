@@ -1179,16 +1179,45 @@ int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) 
 }
 
 int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO (probabaly not)
-	// TODO : (maybe) handle multiple channels
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
+	} else if (cmd.get_args().size() > 1) {
+		reply = cmd.get_cmd() + " :Syntax error";
+		return 461;
 	}
-	// using this hack to mute flags IT MUST BE REMOVED AFTER Implenting the function !!!!
-	(void)cmd;
-	(void)c;
-	(void)reply;
+	std::string msg;
+	const std::string &server = config.get_server_name();
+	const std::string &nick = c.get_nickname();
+	if (cmd.get_args().size() == 1) {
+		std::string channel = cmd.get_args().at(0);
+		std::vector<std::string> channels;
+		if (channel.find(",") != std::string::npos) {
+			while (channel.find(",") != std::string::npos) {
+				channels.push_back(channel.substr(0, channel.find(",")));
+				channel = channel.substr(channels.back().size() + 1);
+			}
+			if (!channel.empty()) {
+				channels.push_back(channel);
+			}
+		} else {
+			channels.push_back(channel);
+		}
+		for (size_t i = 0; i < channels.size(); ++i) {
+			channel_map::iterator it = this->channels.find(channels[i]);
+			if (it != this->channels.end()) {
+				msg += ":" + server + " 322 " + nick + " " + channels[i] + " " + std::to_string(it->second.size());
+				msg += " :" + it->second.get_topic() + "\r\n";
+			}
+		}
+	} else {
+		for (channel_map::iterator it = this->channels.begin(); it != this->channels.end(); ++it) {
+			msg += ":" + server + " 322 " + nick + " " + it->first + " " + std::to_string(it->second.size());
+			msg += " :" + it->second.get_topic() + "\r\n";
+		}
+	}
+	msg += ":" + server + " 323 " + nick + " :End of LIST\r\n";
+	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	return 0;
 }
 
