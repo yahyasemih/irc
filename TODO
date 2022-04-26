@@ -1,8 +1,6 @@
 - implement WHO (important)
 - improve quality of code (duplicated codes, non readable code, ...) (less important)
 - resolve TODOs in files (important)
-- implement and complete the server_config class (or make it static and remove ability to create it from config file)
-- complete support of operators (important)
 - improve ban/exception list for channel modes for handling regex (maybe)
-- (maybe) support a/O/p/q/r/s channels modes
+- (maybe) support O/p/q/r/s channels modes
 - (maybe) add MOTD/RESTART commands

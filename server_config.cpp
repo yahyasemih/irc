@@ -48,8 +48,8 @@ const std::string &server_config::get_channel_modes() const {
 }
 
 static void read_conf_folder(const std::string &configs_dir, std::string &str) {
-	DIR		*dir;
-	struct	dirent *ent;
+	DIR *dir;
+	dirent *ent;
 
 	if ((dir = opendir(configs_dir.c_str())) != NULL) {
 		while ((ent = readdir(dir)) != NULL) {
@@ -96,15 +96,15 @@ void server_config::parse_conf() {
 
 void server_config::set_conf() {
 	for (config_map::iterator it= config.begin(); it!= config.end(); ++it) {
-		if (it->second.empty())
+		if (it->second.empty()) {
 			continue;
-		if (it->first.compare("Operator") == 0) {
+		} else if (it->first == "Operator") {
 			config_entry::iterator name = it->second.find("Name");
 			config_entry::iterator pass = it->second.find("Password");
 			if (name != it->second.end() && pass != it->second.end()) {
 				operators.insert(std::make_pair(name->second, pass->second));
 			}
-		} else if (it->first.compare("Global") == 0) {
+		} else if (it->first == "Global") {
 			config_entry::iterator sname = it->second.find("Name");
 			config_entry::iterator sinfo = it->second.find("Info");
 			config_entry::iterator smotd = it->second.find("MotdPhrase");
