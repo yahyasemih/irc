@@ -1410,9 +1410,6 @@ int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) 
 	} else if (cmd.get_args().empty()) {
 		reply = ":No nickname given";
 		return 431;
-	} else if (cmd.get_args().size() > 1) {
-		reply = cmd.get_cmd() + " :Syntax error";
-		return 461;
 	}
 	const std::string &nickname = cmd.get_args().at(0);
 	if (nick_to_fd.find(nickname) == nick_to_fd.end()) {
