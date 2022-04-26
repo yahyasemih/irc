@@ -131,6 +131,7 @@ void server::start() {
 								c.get_stream().clear();
 								disconnected.push_back(i);
 								join_cmd(command_parser("JOIN 0"), c, reply);
+								--num_users;
 								nick_to_fd.erase(c.get_nickname());
 								clients.erase(pf.fd);
 								close(pf.fd);
