@@ -150,10 +150,16 @@ void server::start() {
 				if (pf.revents & POLLHUP) {
 					if (std::find(disconnected.begin(), disconnected.end(), i) == disconnected.end()) {
 						disconnected.push_back(i);
-						std::string reply;
-						join_cmd(command_parser("JOIN 0"), clients.find(pf.fd)->second, reply);
-						nick_to_fd.erase(clients.find(pf.fd)->second.get_nickname());
-						clients.erase(pf.fd);
+						client_map::iterator it = clients.find(pf.fd);
+						if (it != clients.end()) {
+							std::string reply;
+							if (it->second.is_connected()) {
+								join_cmd(command_parser("JOIN 0"), it->second, reply);
+								--num_users;
+							}
+							nick_to_fd.erase(it->second.get_nickname());
+							clients.erase(it);
+						}
 						close(pf.fd);
 						std::cout << "client disconnected" << std::endl;
 					}
@@ -230,7 +236,6 @@ std::string server::make_server_reply(int reply_code, const std::string &str, co
 void server::clear_disconnected_clients(const std::vector<int> &disconnected) {
 	for (size_t i = 0; i < disconnected.size(); ++i) {
 		pollfds.erase(pollfds.begin() + disconnected[i]);
-		--num_users;
 	}
 }
 
@@ -577,6 +582,9 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 461;
 	}
 	reply = cmd.get_args().empty() ? ":Closing connection" : ":" + cmd.get_args().at(0);
+	if (!c.is_connected()) {
+		return -1;
+	}
 	for (channel_map::iterator it = channels.begin(); it != channels.end();) {
 		if (it->second.is_in_channel(&c)) {
 			std::string msg;
