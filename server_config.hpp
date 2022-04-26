@@ -23,11 +23,14 @@ private:
 
 	std::string server_name;
 	std::string server_info;
+	std::string server_motd;
 	std::string version;
 	std::string user_modes;
 	std::string channel_modes;
 	operator_map operators;
 	config_map config;
+	void parse_conf();
+	void set_conf();
 public:
 	server_config();
 	~server_config();
@@ -35,10 +38,10 @@ public:
 	const operator_map &get_operators() const;
 	const std::string &get_server_name() const;
 	const std::string &get_server_info() const;
+	const std::string &get_server_motd() const;
 	const std::string &get_version() const;
 	const std::string &get_user_modes() const;
 	const std::string &get_channel_modes() const;
-	void parse_conf();
 };
 
 #endif
