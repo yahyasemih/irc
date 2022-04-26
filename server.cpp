@@ -1342,8 +1342,9 @@ int server::pong_cmd(const command_parser &cmd, client &c, std::string &reply) {
 static bool match_name(std::string &r, const std::string &name) {
 	size_t i, j = 0;
 	bool escape = false;
-	if (r.compare("0") == 0)
-		r[0] = '*';
+	if (r == "0") {
+		r = "*";
+	}
 	for (i = 0; r[i] != '\0'; i++) {
 		if (r[i] == '\\') {
 			escape = true;
@@ -1365,7 +1366,7 @@ static bool match_name(std::string &r, const std::string &name) {
 }
 
 static bool have_common_channel(client *c1, client *c2, std::unordered_map<std::string, channel> channels) {
-	for (std::unordered_map<std::string, channel>::iterator it=channels.begin(); it!=channels.end(); ++it) {
+	for (std::unordered_map<std::string, channel>::iterator it = channels.begin(); it != channels.end(); ++it) {
 		if (it->second.is_in_channel(c1) && it->second.is_in_channel(c2))
 			return true;
 	}
@@ -1381,14 +1382,15 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
    		return 461;
    	}
 	std::string to_search = cmd.get_args().empty() ? "*" : cmd.get_args().at(0);
-	bool only_operator = (cmd.get_args().size() == 2 && cmd.get_args().at(1).compare("o") == 0) ? true : false;
+	bool only_operator = cmd.get_args().size() == 2 && cmd.get_args().at(1) == "o";
 	if (std::string("#+&").find(to_search[0]) != std::string::npos) {
 		channel_map::iterator channel = channels.find(to_search);
 		if (channel != channels.end()) {
 			const std::set<client *> clients = channel->second.get_clients();
-			for (std::set<client *>::const_iterator it=clients.cbegin(); it!=clients.cend(); ++it) {
-				if (((*it)->has_mode('i')) || (only_operator && !channel->second.is_oper((*it))))
+			for (std::set<client *>::const_iterator it = clients.cbegin(); it != clients.cend(); ++it) {
+				if (((*it)->has_mode('i')) || (only_operator && !channel->second.is_oper(*it))) {
 					continue;
+				}
 				if (!channel->second.is_anonymous() || c.get_nickname() == (*it)->get_nickname()) {
 					std::string msg = ":" + config.get_server_name() + " 352 " + c.get_nickname() + " ";
 					msg += channel->first + " ~" + (*it)->get_username() + " ";
@@ -1400,14 +1402,14 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			}
 		}
 	} else {
-		for (client_map::const_iterator it = clients.begin(); it != clients.end(); ++it) {
-			if (match_name(to_search, it->second.get_host()) ||
-				  match_name(to_search, it->second.get_realname()) ||
-				  match_name(to_search, it->second.get_nickname()))
-			{
-				if (it->second.has_mode('i') || have_common_channel(&c, (client *)&(it->second), channels))
+		for (client_map::iterator it = clients.begin(); it != clients.end(); ++it) {
+			if (match_name(to_search, it->second.get_host())
+				|| match_name(to_search, it->second.get_realname())
+				|| match_name(to_search, it->second.get_nickname())) {
+				if (it->second.has_mode('i') || have_common_channel(&c, &(it->second), channels)) {
 					continue;
-				// TODO: implement flag 'o' for listing only server operators 
+				}
+				// TODO: implement flag 'o' for listing only server operators
 				std::string msg = ":" + config.get_server_name() + " 352 " + c.get_nickname() + " ";
 				msg += "* ~" + it->second.get_username() + " ";
 				msg += it->second.get_host() + " " + config.get_server_name() + " ";
