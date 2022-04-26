@@ -950,24 +950,7 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 				client_msg += " :End of channel exception list\r\n";
 				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 			}
-		} else if (std::string("imnt").find(modes[i]) != std::string::npos) {
-			if (!it->second.is_oper(&c)) {
-				std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
-				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
-			} else {
-				if (modifier == '-') {
-					if (it->second.remove_mode(modes[i])) {
-						msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
-					}
-				} else {
-					if (it->second.add_mode(modes[i])) {
-						msg = ":" + c.to_string() + " MODE " + target + " +" + modes[i] + "\r\n";
-					}
-				}
-			}
-		}
-		//Private and Secret Channels
-		else if (std::string("ps").find(modes[i]) != std::string::npos) {
+		} else if (std::string("imntps").find(modes[i]) != std::string::npos) {
 			if (!it->second.is_oper(&c)) {
 				std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
 				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
