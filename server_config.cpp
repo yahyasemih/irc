@@ -10,7 +10,7 @@ server_config::server_config() :
 		server_info("This an IRC server made in 1337 school"),
 		version("leet-irc 1.0.0"),
 		user_modes("aioOrsw"),
-		channel_modes("ovimntklbeI") {
+		channel_modes("ovimntklbeIps") {
 			parse_conf();
 			// TODO: remove this for loop just temporarely to see results
 			for (config_map::iterator it= config.begin(); it!= config.end(); ++it) {

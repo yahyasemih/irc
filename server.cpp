@@ -966,6 +966,23 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 				}
 			}
 		}
+		//Private and Secret Channels
+		else if (std::string("ps").find(modes[i]) != std::string::npos) {
+			if (!it->second.is_oper(&c)) {
+				std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
+				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
+			} else {
+				if (modifier == '-') {
+					if (it->second.remove_mode(modes[i])) {
+						msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
+					}
+				} else {
+					if (it->second.add_mode(modes[i])) {
+						msg = ":" + c.to_string() + " MODE " + target + " +" + modes[i] + "\r\n";
+					}
+				}
+			}
+		}
 		if (!msg.empty()) {
 			it->second.send_message(msg, nullptr);
 		}
@@ -1297,6 +1314,7 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	if (std::string("#+&").find(to_search[0]) != std::string::npos) {
 		channel_map::iterator channel = channels.find(to_search);
 		if (channel != channels.end()) {
+			std::cout << "channel is private :" << channel->second.get_mode().find('p') << std::endl;
 			const std::set<client *> clients = channel->second.get_clients();
 			for (std::set<client *>::const_iterator it=clients.cbegin(); it!=clients.cend(); ++it) {
 				std::string msg = ":" + config.get_server_name() + " 352 " + c.get_nickname() + " ";
