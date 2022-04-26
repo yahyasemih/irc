@@ -8,19 +8,12 @@ const std::string server_config::configs_dir = "./config";
 server_config::server_config() :
 		server_name("irc.1337.ma"),
 		server_info("This an IRC server made in 1337 school"),
+		server_motd("Welcome"),
 		version("leet-irc 1.0.0"),
 		user_modes("aioOrsw"),
 		channel_modes("aovimntklbeI") {
 			parse_conf();
-			// TODO: remove this for loop just temporarely to see results
-			for (config_map::iterator it= config.begin(); it!= config.end(); ++it) {
-				if (it->second.empty())
-					continue;
-				std::cout << "==========" << it->first << "==========" << std::endl;
-				for (config_entry::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-					std::cout << it2->first << " => " << it2->second << std::endl;
-				}
-			}
+			set_conf();
 }
 
 server_config::~server_config() {
@@ -36,6 +29,10 @@ const std::string &server_config::get_server_name() const {
 
 const std::string &server_config::get_server_info() const {
 	return server_info;
+}
+
+const std::string &server_config::get_server_motd() const {
+	return server_motd;
 }
 
 const std::string &server_config::get_version() const {
@@ -92,6 +89,33 @@ void server_config::parse_conf() {
 			std::regex_search(line, m, regex_parse_value);
 			if (config.find(key) != config.end()) {
 				(--config.equal_range(key).second)->second[m[1]] = m[2];
+			}
+		}
+	}
+}
+
+void server_config::set_conf() {
+	for (config_map::iterator it= config.begin(); it!= config.end(); ++it) {
+		if (it->second.empty())
+			continue;
+		if (it->first.compare("Operator") == 0) {
+			config_entry::iterator name = it->second.find("Name");
+			config_entry::iterator pass = it->second.find("Password");
+			if (name != it->second.end() && pass != it->second.end()) {
+				operators.insert(std::make_pair(name->second, pass->second));
+			}
+		} else if (it->first.compare("Global") == 0) {
+			config_entry::iterator sname = it->second.find("Name");
+			config_entry::iterator sinfo = it->second.find("Info");
+			config_entry::iterator smotd = it->second.find("MotdPhrase");
+			if (sname != it->second.end()) {
+				server_name = sname->second;
+			}
+			if (sinfo != it->second.end()) {
+				server_info = sinfo->second;
+			}
+			if (smotd != it->second.end()) {
+				server_motd = smotd->second;
 			}
 		}
 	}
