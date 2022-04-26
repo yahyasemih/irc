@@ -1339,12 +1339,11 @@ int server::pong_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	return 0;
 }
 
-bool match_name(std::string &r, const std::string &name) {
-	// std::string r = "*???????";
-	// std::string name = "zoulhafi";
-	// Not Completed Yet, many checks needs
+static bool match_name(std::string &r, const std::string &name) {
 	size_t i, j = 0;
 	bool escape = false;
+	if (r.compare("0") == 0)
+		r[0] = '*';
 	for (i = 0; r[i] != '\0'; i++) {
 		if (r[i] == '\\') {
 			escape = true;
@@ -1365,42 +1364,52 @@ bool match_name(std::string &r, const std::string &name) {
 	return r[i] == name[j];
 }
 
-int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// Under Review: handle wilrdcards, multiple nicknames
-	// TODO: implement flag 'o' for listing only operators
-	// TODO: don't show users have mode +i
-	// TODO: Client matched must not have common channel
-	// TODO handle anounymous channels (see WHOIS for an example)
-	if (c.connection_not_registered()) {
-		reply = ":You have not registered";
-		return 451;
-	} else if (cmd.get_args().size() > 2) {
-		reply = cmd.get_cmd() + " :Syntax error";
-		return 461;
+static bool have_common_channel(client *c1, client *c2, std::unordered_map<std::string, channel> channels) {
+	for (std::unordered_map<std::string, channel>::iterator it=channels.begin(); it!=channels.end(); ++it) {
+		if (it->second.is_in_channel(c1) && it->second.is_in_channel(c2))
+			return true;
 	}
+	return false;
+}
+
+int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
+   	if (c.connection_not_registered()) {
+   		reply = ":You have not registered";
+   		return 451;
+   	} else if (cmd.get_args().size() > 2) {
+   		reply = cmd.get_cmd() + " :Syntax error";
+   		return 461;
+   	}
 	std::string to_search = cmd.get_args().empty() ? "*" : cmd.get_args().at(0);
+	bool only_operator = (cmd.get_args().size() == 2 && cmd.get_args().at(1).compare("o") == 0) ? true : false;
 	if (std::string("#+&").find(to_search[0]) != std::string::npos) {
 		channel_map::iterator channel = channels.find(to_search);
 		if (channel != channels.end()) {
 			const std::set<client *> clients = channel->second.get_clients();
 			for (std::set<client *>::const_iterator it=clients.cbegin(); it!=clients.cend(); ++it) {
-				std::string msg = ":" + config.get_server_name() + " 352 " + c.get_nickname() + " ";
-				msg += channel->first + " " + (*it)->get_username() + " ";
-				msg += (*it)->get_host() + " " + config.get_server_name() + " ";
-				msg += (*it)->get_nickname() + " H" + channel->second.get_user_prefix(*it) + " ";
-				msg += ":0 " + (*it)->get_realname() + "\r\n";
-				send(c.get_fd(), msg.c_str(), msg.size(), 0);
+				if (((*it)->has_mode('i')) || (only_operator && !channel->second.is_oper((*it))))
+					continue;
+				if (!channel->second.is_anonymous() || c.get_nickname() == (*it)->get_nickname()) {
+					std::string msg = ":" + config.get_server_name() + " 352 " + c.get_nickname() + " ";
+					msg += channel->first + " ~" + (*it)->get_username() + " ";
+					msg += (*it)->get_host() + " " + config.get_server_name() + " ";
+					msg += (*it)->get_nickname() + " H" + channel->second.get_user_prefix(*it) + " ";
+					msg += ":0 " + (*it)->get_realname() + "\r\n";
+					send(c.get_fd(), msg.c_str(), msg.size(), 0);
+				}
 			}
 		}
 	} else {
 		for (client_map::const_iterator it = clients.begin(); it != clients.end(); ++it) {
-			//match all users => host, server, real name, nickname
 			if (match_name(to_search, it->second.get_host()) ||
 				  match_name(to_search, it->second.get_realname()) ||
 				  match_name(to_search, it->second.get_nickname()))
 			{
+				if (it->second.has_mode('i') || have_common_channel(&c, (client *)&(it->second), channels))
+					continue;
+				// TODO: implement flag 'o' for listing only server operators 
 				std::string msg = ":" + config.get_server_name() + " 352 " + c.get_nickname() + " ";
-				msg += "* " + it->second.get_username() + " ";
+				msg += "* ~" + it->second.get_username() + " ";
 				msg += it->second.get_host() + " " + config.get_server_name() + " ";
 				msg += it->second.get_nickname() + " H ";
 				msg += ":0 " + it->second.get_realname() + "\r\n";
