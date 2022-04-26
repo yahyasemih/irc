@@ -298,7 +298,7 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 461;
 	}
 	std::string nickname = cmd.get_args().at(0);
-	if (!std::regex_match(nickname, nickname_rule)) {
+	if (!std::regex_match(nickname, nickname_rule) || nickname == "anonymous") {
 		reply = nickname + " :Erroneous nickname";
 		return 432;
 	} else if (!c.get_username().empty()) {
@@ -463,6 +463,9 @@ int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply
 			std::string msg = ":" + c.to_string() + " PRIVMSG " + receiver + " :" + text + "\r\n";
 			if (channels_it != channels.end()) {
 				if (channels_it->second.can_speak(&c)) {
+					if (channels_it->second.is_anonymous()) {
+						msg = ":anonymous!anonymous@anonymous PRIVMSG " + receiver + " :" + text + "\r\n";
+					}
 					channels_it->second.send_message(msg, &c);
 				} else {
 					if (c.is_restricted()) {
@@ -498,8 +501,17 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	if (cmd.get_args().size() == 1 && cmd.get_args().at(0) == "0") {
 		for (channel_map::iterator it = channels.begin(); it != channels.end();) {
 			if (it->second.is_in_channel(&c)) {
-				std::string msg = ":" + c.to_string() + " PART " + it->first + " :" + c.get_nickname() + "\r\n";
-				it->second.send_message(msg, nullptr);
+				std::string msg;
+				if (it->second.is_anonymous()) {
+					msg = ":anonymous!anonymous@anonymous";
+				} else {
+					msg = ":" + c.to_string();
+				}
+				std::string to_self = ":" + c.to_string() + " PART " + it->first + " :" + c.get_nickname() + "\r\n";
+				msg += " PART " + it->first + " :" + (it->second.is_anonymous() ? "anonymous" : c.get_nickname());
+				msg += "\r\n";
+				it->second.send_message(msg, &c);
+				send(c.get_fd(), to_self.c_str(), to_self.size(), 0);
 				it->second.remove_client(&c);
 			}
 			if (it->second.empty()) {
@@ -547,7 +559,11 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			channels[chnl].remove_invitation(&c);
 			channels[chnl].add_client(&c);
 			std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
-			channels[chnl].send_message(msg, nullptr);
+			if (!channels[chnl].is_anonymous()) {
+				channels[chnl].send_message(msg, nullptr);
+			} else {
+				send(c.get_fd(), msg.c_str(), msg.size(), 0);
+			}
 			names_cmd(command_parser("NAMES " + chnl), c, msg);
 		}
 	}
@@ -563,8 +579,17 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 	reply = cmd.get_args().empty() ? ":Closing connection" : ":" + cmd.get_args().at(0);
 	for (channel_map::iterator it = channels.begin(); it != channels.end();) {
 		if (it->second.is_in_channel(&c)) {
-			std::string msg = ":" + c.to_string() + " QUIT :";
-			msg += (cmd.get_args().empty() ? c.get_nickname() : cmd.get_args().at(0)) + "\r\n";
+			std::string msg;
+			if (it->second.is_anonymous()) {
+				msg = ":anonymous!anonymous@anonymous PART " + it->first + ":";
+				if (!cmd.get_args().empty()) {
+					msg += cmd.get_args().at(0);
+				}
+				msg += "\r\n";
+			} else {
+				msg = ":" + c.to_string() + " QUIT :";
+				msg += (cmd.get_args().empty() ? c.get_nickname() : cmd.get_args().at(0)) + "\r\n";
+			}
 			it->second.send_message(msg, &c);
 			it->second.remove_client(&c);
 			if (it->second.empty()) {
@@ -598,9 +623,17 @@ int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		reply = channel_name + " :You are not on that channel";
 		return 442;
 	} else {
-		std::string msg = cmd.get_args().size() == 1 ? "" : cmd.get_args().at(1);
-		msg = ":" + c.to_string() + " PART " + channel_name + " :" + msg + "\r\n";
-		it->second.send_message(msg, nullptr);
+		std::string part_msg = cmd.get_args().size() == 1 ? "" : cmd.get_args().at(1);
+		std::string msg;
+		if (it->second.is_anonymous()) {
+			msg = ":anonymous!anonymous@anonymous";
+		} else {
+			msg = ":" + c.to_string();
+		}
+		std::string to_self = ":" + c.to_string() + " PART " + channel_name + " :" + part_msg + "\r\n";
+		msg += " PART " + channel_name + " :" + part_msg + "\r\n";
+		it->second.send_message(msg, &c);
+		send(c.get_fd(), to_self.c_str(), to_self.size(), 0);
 		it->second.remove_client(&c);
 		if (it->second.empty()) {
 			channels.erase(it);
@@ -655,7 +688,13 @@ int server::topic_cmd(const command_parser &cmd, client &c, std::string &reply) 
 			} else {
 				if (ch.can_set_topic(&c)) {
 					ch.set_topic(topic);
-					std::string msg = ":" + c.to_string() + " TOPIC " + chnl + " :" + topic + "\r\n";
+					std::string msg;
+					if (ch.is_anonymous()) {
+						msg = ":anonymous!anonymous@anonymous";
+					} else {
+						msg = ":" + c.to_string();
+					}
+					msg += " TOPIC " + chnl + " :" + topic + "\r\n";
 					ch.send_message(msg, nullptr);
 				} else {
 					if (c.is_restricted()) {
@@ -761,7 +800,7 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 		if (modes[i] == '-' || modes[i] == '+') {
 			modifier = modes[i];
 		} else if (config.get_channel_modes().find(modes[i]) == std::string::npos) {
-			msg = make_server_reply(472, std::to_string(modes[i]) + " :is unknown mode char to me for " + target, c);
+			msg = make_server_reply(472, std::string(1, modes[i]) + " :is unknown mode char to me for " + target, c);
 		} else if (modes[i] == 'o') {
 			if (!it->second.is_oper(&c)) {
 				std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
@@ -950,8 +989,11 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 				client_msg += " :End of channel exception list\r\n";
 				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 			}
-		} else if (std::string("imnt").find(modes[i]) != std::string::npos) {
-			if (!it->second.is_oper(&c)) {
+		} else if (std::string("aimnt").find(modes[i]) != std::string::npos) {
+			if (modes[i] == 'a' && target[0] != '&') {
+				std::string client_msg = make_server_reply(477, target + " :Channel doesn't support modes", c);
+				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
+			} else if (!it->second.is_oper(&c)) {
 				std::string client_msg = make_server_reply(482, target + " :You are not channel operator", c);
 				send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 			} else {
@@ -1062,7 +1104,13 @@ int server::invite_cmd(const command_parser &cmd, client &c, std::string &reply)
 			}
 		}
 	}
-	std::string msg = ":" + other.to_string() + " INVITE " + nickname + " " + channel + "\r\n";
+	std::string msg;
+	if (channels.find(channel) != channels.end() && channels.find(channel)->second.is_anonymous()) {
+		msg = ":anonymous!anonymous@anonymous";
+	} else {
+		msg = ":" + c.to_string();
+	}
+	msg += " INVITE " + nickname + " " + channel + "\r\n";
 	send(other.get_fd(), msg.c_str(), msg.size(), 0);
 	msg = ":" + c.to_string() + " 341 " + c.get_nickname() + " " + nickname + " " + channel + "\r\n";
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
@@ -1111,9 +1159,21 @@ int server::kick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			reply = nicknames[i] + " " + channel + " They aren't on that channel";
 			return 441;
 		} else {
-			std::string msg = ":" + c.to_string() + " KICK " + channel + " " + nicknames[i] + " :" + message + "\r\n";
-			channels[channel].send_message(msg, nullptr);
-			channels[channel].remove_client(&clients.find(nick_to_fd[nicknames[i]])->second);
+			std::string msg;
+			std::string kicked;
+			if (channels[channel].is_anonymous()) {
+				msg = ":anonymous!anonymous@anonymous";
+				kicked = "anonymous";
+			} else {
+				msg = ":" + c.to_string();
+				kicked = nicknames[i];
+			}
+			client &target = clients.find(nick_to_fd[nicknames[i]])->second;
+			std::string to_target = msg + " KICK " + channel + " " + nicknames[i] + " :" + message + "\r\n";
+			msg += " KICK " + channel + " " + kicked + " :" + message + "\r\n";
+			channels[channel].send_message(msg, &target);
+			send(target.get_fd(), to_target.c_str(), to_target.size(), 0);
+			channels[channel].remove_client(&target);
 			if (channels[channel].empty()) {
 				channels.erase(channels.find(channel));
 			}
@@ -1136,7 +1196,9 @@ int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) 
 	const std::string &nick = c.get_nickname();
 	if (cmd.get_args().empty()) {
 		for (channel_map::const_iterator entry = channels.cbegin(); entry != channels.cend(); ++entry) {
-			msg = ":" + server + " 353 " + nick + " = " + entry->first + " :" + entry->second.to_string() + "\r\n";
+			if (!entry->second.is_anonymous()) {
+				msg = ":" + server + " 353 " + nick + " = " + entry->first + " :" + entry->second.to_string() + "\r\n";
+			}
 		}
 		std::string without_channel = get_clients_without_channel();
 		if (!without_channel.empty()) {
@@ -1158,8 +1220,14 @@ int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) 
 			channels.push_back(channel);
 		}
 		for (size_t i = 0; i < channels.size(); ++i) {
-			if (this->channels.find(channels[i]) != this->channels.end()) {
-				msg += ":" + server + " 353 " + nick + " = " + channel + " :" + this->channels[channels[i]].to_string();
+			channel_map::iterator it = this->channels.find(channels[i]);
+			if (it != this->channels.end()) {
+				msg += ":" + server + " 353 " + nick + " = " + channel + " :";
+				if (!it->second.is_anonymous()) {
+					msg += it->second.to_string();
+				} else if (it->second.is_in_channel(&c)) {
+					msg += it->second.get_user_prefix(&c) + c.get_nickname();
+				}
 				msg += "\r\n";
 			}
 		}
@@ -1219,7 +1287,13 @@ int server::notice_cmd(const command_parser &cmd, client &c, std::string &) {
 		std::unordered_map<std::string, int>::iterator nicks_it = nick_to_fd.find(receiver);
 		channel_map::iterator channels_it = channels.find(receiver);
 		if (nicks_it != nick_to_fd.cend() || channels_it != channels.end()) {
-			std::string msg = ":" + c.to_string() + " NOTICE " + receiver + " :" + text + "\r\n";
+			std::string msg;
+			if (channels_it->second.is_anonymous()) {
+				msg = ":anonymous!anonymous@anonymous";
+			} else {
+				msg = ":" + c.to_string();
+			}
+			msg += " NOTICE " + receiver + " :" + text + "\r\n";
 			if (channels_it != channels.end()) {
 				if (channels_it->second.can_speak(&c)) {
 					channels_it->second.send_message(msg, &c);
@@ -1282,10 +1356,11 @@ bool match_name(std::string &r, const std::string &name) {
 }
 
 int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	//Under Review: handle wilrdcards, multiple nicknames
-	//TODO: implement flag 'o' for listing only operators
-	//TODO: don't show users have mode +i
-	//TODO: Client matched must not have common channel
+	// Under Review: handle wilrdcards, multiple nicknames
+	// TODO: implement flag 'o' for listing only operators
+	// TODO: don't show users have mode +i
+	// TODO: Client matched must not have common channel
+	// TODO handle anounymous channels (see WHOIS for an example)
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
@@ -1352,7 +1427,7 @@ int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) 
 			+ " :" + config.get_server_info() + "\r\n";
 	std::string chans;
 	for (channel_map::iterator it = channels.begin(); it != channels.end(); ++it) {
-		if (it->second.is_in_channel(&c2)) {
+		if (!it->second.is_anonymous() && it->second.is_in_channel(&c2)) {
 			chans += it->second.get_user_prefix(&c2) + it->first + " ";
 		}
 	}

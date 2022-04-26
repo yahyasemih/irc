@@ -78,6 +78,7 @@ public:
 	const std::string &get_key() const;
 	long long get_created_at() const;
 	bool is_banned(client *c) const;
+	bool is_anonymous() const;
 };
 
 #endif

@@ -268,3 +268,7 @@ bool channel::is_banned(client *c) const {
 	return (ban_list.find(nickname) != ban_list.end() && exception_list.find(nickname) == exception_list.end())
 			|| (ban_list.find(client_str) != ban_list.end() && exception_list.find(client_str) == exception_list.end());
 }
+
+bool channel::is_anonymous() const {
+	return has_mode('a');
+}
