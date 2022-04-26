@@ -800,6 +800,7 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 		send(c.get_fd(), msg.c_str(), msg.size(), 0);
 		return 0;
 	}
+	std::string prefix = it->second.is_anonymous() ? ":anonymous!anonymous@anonymous" : ":" + c.to_string();
 
 	const std::string modes = cmd.get_args().at(1);
 	char modifier = '+';
@@ -822,11 +823,11 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 						send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 					} else if (modifier == '+') {
 						if (it->second.add_oper(&other)) {
-							msg = ":" + c.to_string() + " MODE " + target + " +o " + cmd.get_args().at(idx) + "\r\n";
+							msg = prefix + " MODE " + target + " +o " + cmd.get_args().at(idx) + "\r\n";
 						}
 					} else {
 						if (it->second.remove_oper(&other)) {
-							msg = ":" + c.to_string() + " MODE " + target + " -o " + cmd.get_args().at(idx) + "\r\n";
+							msg = prefix + " MODE " + target + " -o " + cmd.get_args().at(idx) + "\r\n";
 						}
 					}
 					++idx;
@@ -847,11 +848,11 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 						send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 					} else if (modifier == '+') {
 						if (it->second.add_speaker(&other)) {
-							msg = ":" + c.to_string() + " MODE " + target + " +v " + cmd.get_args().at(idx) + "\r\n";
+							msg = prefix + " MODE " + target + " +v " + cmd.get_args().at(idx) + "\r\n";
 						}
 					} else {
 						if (it->second.remove_speaker(&other)) {
-							msg = ":" + c.to_string() + " MODE " + target + " -v " + cmd.get_args().at(idx) + "\r\n";
+							msg = prefix + " MODE " + target + " -v " + cmd.get_args().at(idx) + "\r\n";
 						}
 					}
 					++idx;
@@ -867,11 +868,11 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 				} else {
 					if (modifier == '+') {
 						if (it->second.add_ban(cmd.get_args().at(idx), c.get_nickname())) {
-							msg = ":" + c.to_string() + " MODE " + target + " +b " + cmd.get_args().at(idx) + "\r\n";
+							msg = prefix + " MODE " + target + " +b " + cmd.get_args().at(idx) + "\r\n";
 						}
 					} else {
 						if (it->second.remove_ban(cmd.get_args().at(idx))) {
-							msg = ":" + c.to_string() + " MODE " + target + " -b " + cmd.get_args().at(idx) + "\r\n";
+							msg = prefix + " MODE " + target + " -b " + cmd.get_args().at(idx) + "\r\n";
 						}
 					}
 				}
@@ -896,11 +897,11 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 				} else if (modifier == '+') {
 					it->second.add_mode('k');
 					it->second.set_key(cmd.get_args().at(idx));
-					msg = ":" + c.to_string() + " MODE " + target + " +k " + cmd.get_args().at(idx) + "\r\n";
+					msg = prefix + " MODE " + target + " +k " + cmd.get_args().at(idx) + "\r\n";
 				} else {
 					if (it->second.remove_mode('k')) {
 						it->second.set_key("");
-						msg = ":" + c.to_string() + " MODE " + target + " -k *\r\n";
+						msg = prefix + " MODE " + target + " -k *\r\n";
 					}
 				}
 				++idx;
@@ -911,7 +912,7 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 						send(c.get_fd(), client_msg.c_str(), client_msg.size(), 0);
 					} else if (it->second.remove_mode('k')) {
 						it->second.set_key("");
-						msg = ":" + c.to_string() + " MODE " + target + " -k *\r\n";
+						msg = prefix + " MODE " + target + " -k *\r\n";
 					}
 				}
 			}
@@ -925,17 +926,17 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 					if (limit > 0 && modifier == '+') {
 						it->second.set_limit(limit);
 						it->second.add_mode('l');
-						msg = ":" + c.to_string() + " MODE " + target + " +l " + cmd.get_args().at(idx) + "\r\n";
+						msg = prefix + " MODE " + target + " +l " + cmd.get_args().at(idx) + "\r\n";
 					} else if (modifier == '-' && it->second.has_mode('l')) {
 						it->second.remove_mode('l');
-						msg = ":" + c.to_string() + " MODE " + target + " -l " + cmd.get_args().at(idx) + "\r\n";
+						msg = prefix + " MODE " + target + " -l " + cmd.get_args().at(idx) + "\r\n";
 					}
 					++idx;
 				} else {
 					if (modifier == '-') {
 						if (it->second.has_mode('l')) {
 							it->second.remove_mode('l');
-							msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
+							msg = prefix + " MODE " + target + " -" + modes[i] + "\r\n";
 						}
 					}
 				}
@@ -948,11 +949,11 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 				} else {
 					if (modifier == '-') {
 						if (it->second.remove_invite(cmd.get_args().at(idx))) {
-							msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
+							msg = prefix + " MODE " + target + " -" + modes[i] + "\r\n";
 						}
 					} else {
 						if (it->second.add_invite(cmd.get_args().at(idx), c.get_nickname())) {
-							msg = ":" + c.to_string() + " MODE " + target + " +" + modes[i] + "\r\n";
+							msg = prefix + " MODE " + target + " +" + modes[i] + "\r\n";
 						}
 					}
 				}
@@ -976,11 +977,11 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 				} else {
 					if (modifier == '+') {
 						if (it->second.add_exception(cmd.get_args().at(idx), c.get_nickname())) {
-							msg = ":" + c.to_string() + " MODE " + target + " +" + modes[i] + "\r\n";
+							msg = prefix + " MODE " + target + " +" + modes[i] + "\r\n";
 						}
 					} else {
 						if (it->second.remove_exception(cmd.get_args().at(idx))) {
-							msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
+							msg = prefix + " MODE " + target + " -" + modes[i] + "\r\n";
 						}
 					}
 				}
@@ -1007,11 +1008,11 @@ int server::channel_mode_cmd(const command_parser &cmd, client &c, std::string &
 			} else {
 				if (modifier == '-') {
 					if (it->second.remove_mode(modes[i])) {
-						msg = ":" + c.to_string() + " MODE " + target + " -" + modes[i] + "\r\n";
+						msg = prefix + " MODE " + target + " -" + modes[i] + "\r\n";
 					}
 				} else {
 					if (it->second.add_mode(modes[i])) {
-						msg = ":" + c.to_string() + " MODE " + target + " +" + modes[i] + "\r\n";
+						msg = prefix + " MODE " + target + " +" + modes[i] + "\r\n";
 					}
 				}
 			}
