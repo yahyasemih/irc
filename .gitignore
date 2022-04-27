@@ -2,3 +2,4 @@ a.out
 *.o
 ircserv
 node_modules
+.vscode
