@@ -80,6 +80,7 @@ private:
 	int who_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int whois_cmd(const command_parser &cmd, client &c, std::string &reply);
 	int ison_cmd(const command_parser &cmd, client &c, std::string &reply);
+	int motd_cmd(const command_parser &cmd, client &c, std::string &reply);
 
 	static command_map init_map();
 public:
