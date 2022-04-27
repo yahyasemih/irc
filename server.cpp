@@ -1394,7 +1394,7 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		if (channel != channels.end()) {
 			const std::set<client *> clients = channel->second.get_clients();
 			for (std::set<client *>::const_iterator it = clients.cbegin(); it != clients.cend(); ++it) {
-				if (((*it)->has_mode('i')) || (only_operator && !channel->second.is_oper(*it))) {
+				if (((*it)->has_mode('i')) || (only_operator && !(*it)->is_oper())) {
 					continue;
 				}
 				if (!channel->second.is_anonymous() || c.get_nickname() == (*it)->get_nickname()) {
@@ -1412,10 +1412,11 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			if (match_name(to_search, it->second.get_host())
 				|| match_name(to_search, it->second.get_realname())
 				|| match_name(to_search, it->second.get_nickname())) {
-				if (it->second.has_mode('i') || have_common_channel(&c, &(it->second), channels)) {
+				if (it->second.has_mode('i')
+					|| (only_operator && !it->second.is_oper())
+					|| have_common_channel(&c, &(it->second), channels)) {
 					continue;
 				}
-				// TODO: implement flag 'o' for listing only server operators
 				std::string msg = ":" + config.get_server_name() + " 352 " + c.get_nickname() + " ";
 				msg += "* ~" + it->second.get_username() + " ";
 				msg += it->second.get_host() + " " + config.get_server_name() + " ";
