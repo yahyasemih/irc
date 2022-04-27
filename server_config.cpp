@@ -9,6 +9,7 @@ server_config::server_config() :
 		server_name("irc.1337.ma"),
 		server_info("This an IRC server made in 1337 school"),
 		server_motd(""),
+		server_motd_file(""),
 		allowed_channels("#&+"),
 		version("leet-irc 1.0.0"),
 		user_modes("aioOrsw"),
@@ -34,6 +35,10 @@ const std::string &server_config::get_server_info() const {
 
 const std::string &server_config::get_server_motd() const {
 	return server_motd;
+}
+
+const std::string &server_config::get_server_motd_file() const {
+	return server_motd_file;
 }
 
 const std::string &server_config::get_allowed_channels() const {
@@ -113,6 +118,7 @@ void server_config::set_conf() {
 			config_entry::iterator sname = it->second.find("Name");
 			config_entry::iterator sinfo = it->second.find("Info");
 			config_entry::iterator smotd = it->second.find("MotdPhrase");
+			config_entry::iterator smotd_file = it->second.find("MotdFile");
 			if (sname != it->second.end()) {
 				server_name = sname->second;
 			}
@@ -121,6 +127,9 @@ void server_config::set_conf() {
 			}
 			if (smotd != it->second.end()) {
 				server_motd = smotd->second;
+			}
+			if (smotd_file != it->second.end()) {
+				server_motd_file = smotd_file->second;
 			}
 		} else if (it->first == "Options") {
 			config_entry::iterator allowed_channel_types = it->second.find("AllowedChannelTypes");

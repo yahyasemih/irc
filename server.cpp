@@ -1524,16 +1524,25 @@ int server::motd_cmd(const command_parser &cmd, client &c, std::string &reply) {
    	} else if (cmd.get_args().size() > 1) {
    		reply = cmd.get_cmd() + " :Syntax error";
    		return 461;
-   	} else if (config.get_server_motd().empty()) {
+   	}
+	std::string motd_fname = config.get_server_motd_file();
+	std::string motd_phrase = config.get_server_motd();
+	std::istream *file_stream;
+	std::ifstream motd_file("./config/" + motd_fname);
+	std::stringstream str_stream;
+	if (!motd_fname.empty() && motd_file.is_open()) {
+		file_stream = &motd_file;
+	} else if (!motd_phrase.empty()) {
+		str_stream.str(config.get_server_motd());
+		file_stream = &str_stream;
+	} else {
    		reply = ":MOTD File is missing";
 		return 422;
 	}
-	std::stringstream str_stream;
-	str_stream.str(config.get_server_motd());
 	std::string line;
 	std::string msg = make_server_reply(375, ":- " + config.get_server_name() + " Message of the day - ", c);
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
-	while (std::getline(str_stream, line)) {
+	while (std::getline(*file_stream, line)) {
 		msg = make_server_reply(372, ":- " + line, c);
 		send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	}
