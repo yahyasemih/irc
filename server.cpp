@@ -504,7 +504,6 @@ int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply
 }
 
 int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO : (maybe) handle multiple channels
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
@@ -537,48 +536,63 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		}
 		return 0; // No reply to send, already sent by channel
 	}
-	std::string chnl = cmd.get_args().at(0);
-	if (!std::regex_match(chnl, channel_rule) || config.get_allowed_channels().find(chnl[0]) == std::string::npos) {
-		reply = chnl + " :No such channel";
-		return 403;
-	} else if (channels.find(chnl) == channels.end()) {
-		channel ch = cmd.get_args().size() == 1 ? channel() : channel(cmd.get_args().at(1));
-		ch.add_client(&c);
-		channels.insert(std::make_pair(chnl, ch));
-		std::string msg;
-		msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
-		send(c.get_fd(), msg.c_str(), msg.size(), 0);
-		names_cmd(command_parser("NAMES " + chnl), c, msg);
+	std::string channel_arg = cmd.get_args().at(0);
+	std::vector<std::string> chnls;
+	if (channel_arg.find(",") != std::string::npos) {
+		while (channel_arg.find(",") != std::string::npos) {
+			chnls.push_back(channel_arg.substr(0, channel_arg.find(",")));
+			channel_arg = channel_arg.substr(chnls.back().size() + 1);
+		}
+		if (!channel_arg.empty()) {
+			chnls.push_back(channel_arg);
+		}
 	} else {
-		if (!channels[chnl].is_in_channel(&c)) {
-			if (channels[chnl].has_mode('k') && (cmd.get_args().size() != 2
-				|| cmd.get_args().at(1) != channels[chnl].get_key())) {
-				reply = chnl + " :Cannot join channel (+k) -- Wrong channel key";
-				return 475;
-			} else if (channels[chnl].is_banned(&c)) {
-				reply = chnl + " :Cannot join channel (+b) -- You are banned";
-				return 474;
-			} else if (channels[chnl].size() == channels[chnl].get_limit()) {
-				reply = chnl + " :Cannot join channel (+l) -- Channel is full, try later";
-				return 471;
-			} else if (!channels[chnl].can_join(&c)) {
-				if (c.is_restricted()) {
-					reply = ":Your connection is restricted";
-					return 484;
-				} else {
-					reply = chnl + " :Cannot join channel (+i) -- Invited users only";
-					return 473;
-				}
-			}
-			channels[chnl].remove_invitation(&c);
-			channels[chnl].add_client(&c);
-			std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
-			if (!channels[chnl].is_anonymous()) {
-				channels[chnl].send_message(msg, nullptr);
-			} else {
-				send(c.get_fd(), msg.c_str(), msg.size(), 0);
-			}
+		chnls.push_back(channel_arg);
+	}
+	for (size_t i = 0; i < chnls.size(); ++i) {
+		std::string &chnl = chnls[i];
+		if (!std::regex_match(chnl, channel_rule) || config.get_allowed_channels().find(chnl[0]) == std::string::npos) {
+			reply = chnl + " :No such channel";
+			return 403;
+		} else if (channels.find(chnl) == channels.end()) {
+			channel ch = cmd.get_args().size() == 1 ? channel() : channel(cmd.get_args().at(1));
+			ch.add_client(&c);
+			channels.insert(std::make_pair(chnl, ch));
+			std::string msg;
+			msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
+			send(c.get_fd(), msg.c_str(), msg.size(), 0);
 			names_cmd(command_parser("NAMES " + chnl), c, msg);
+		} else {
+			if (!channels[chnl].is_in_channel(&c)) {
+				if (channels[chnl].has_mode('k') && (cmd.get_args().size() != 2
+					|| cmd.get_args().at(1) != channels[chnl].get_key())) {
+					reply = chnl + " :Cannot join channel (+k) -- Wrong channel key";
+					return 475;
+				} else if (channels[chnl].is_banned(&c)) {
+					reply = chnl + " :Cannot join channel (+b) -- You are banned";
+					return 474;
+				} else if (channels[chnl].size() == channels[chnl].get_limit()) {
+					reply = chnl + " :Cannot join channel (+l) -- Channel is full, try later";
+					return 471;
+				} else if (!channels[chnl].can_join(&c)) {
+					if (c.is_restricted()) {
+						reply = ":Your connection is restricted";
+						return 484;
+					} else {
+						reply = chnl + " :Cannot join channel (+i) -- Invited users only";
+						return 473;
+					}
+				}
+				channels[chnl].remove_invitation(&c);
+				channels[chnl].add_client(&c);
+				std::string msg = ":" + c.to_string() + " JOIN :" + chnl + "\r\n";
+				if (!channels[chnl].is_anonymous()) {
+					channels[chnl].send_message(msg, nullptr);
+				} else {
+					send(c.get_fd(), msg.c_str(), msg.size(), 0);
+				}
+				names_cmd(command_parser("NAMES " + chnl), c, msg);
+			}
 		}
 	}
 
@@ -623,7 +637,6 @@ int server::quit_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO : (maybe) handle multiple channels
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
@@ -631,32 +644,47 @@ int server::part_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	}
-	const std::string &channel_name = cmd.get_args().at(0);
-	channel_map::iterator it = channels.find(channel_name);
-	if (it == channels.end()) {
-		reply = channel_name + " :No such channel";
-		return 403;
-	} else if (!it->second.is_in_channel(&c)) {
-		reply = channel_name + " :You are not on that channel";
-		return 442;
+	std::string channel_arg = cmd.get_args().at(0);
+	std::vector<std::string> chnls;
+	if (channel_arg.find(",") != std::string::npos) {
+		while (channel_arg.find(",") != std::string::npos) {
+			chnls.push_back(channel_arg.substr(0, channel_arg.find(",")));
+			channel_arg = channel_arg.substr(chnls.back().size() + 1);
+		}
+		if (!channel_arg.empty()) {
+			chnls.push_back(channel_arg);
+		}
 	} else {
-		std::string part_msg = cmd.get_args().size() == 1 ? "" : cmd.get_args().at(1);
-		std::string msg;
-		if (it->second.is_anonymous()) {
-			msg = ":anonymous!anonymous@anonymous";
-		} else {
-			msg = ":" + c.to_string();
-		}
-		std::string to_self = ":" + c.to_string() + " PART " + channel_name + " :" + part_msg + "\r\n";
-		msg += " PART " + channel_name + " :" + part_msg + "\r\n";
-		it->second.send_message(msg, &c);
-		send(c.get_fd(), to_self.c_str(), to_self.size(), 0);
-		it->second.remove_client(&c);
-		if (it->second.empty()) {
-			channels.erase(it);
-		}
-		return 0; // No reply to send, already sent by channel
+		chnls.push_back(channel_arg);
 	}
+	for (size_t i = 0; i < chnls.size(); ++i) {
+		const std::string &channel_name = chnls[i];
+		channel_map::iterator it = channels.find(channel_name);
+		if (it == channels.end()) {
+			reply = channel_name + " :No such channel";
+			return 403;
+		} else if (!it->second.is_in_channel(&c)) {
+			reply = channel_name + " :You are not on that channel";
+			return 442;
+		} else {
+			std::string part_msg = cmd.get_args().size() == 1 ? "" : cmd.get_args().at(1);
+			std::string msg;
+			if (it->second.is_anonymous()) {
+				msg = ":anonymous!anonymous@anonymous";
+			} else {
+				msg = ":" + c.to_string();
+			}
+			std::string to_self = ":" + c.to_string() + " PART " + channel_name + " :" + part_msg + "\r\n";
+			msg += " PART " + channel_name + " :" + part_msg + "\r\n";
+			it->second.send_message(msg, &c);
+			send(c.get_fd(), to_self.c_str(), to_self.size(), 0);
+			it->second.remove_client(&c);
+			if (it->second.empty()) {
+				channels.erase(it);
+			}
+		}
+	}
+	return 0; // No reply to send, already sent by channel
 }
 
 int server::away_cmd(const command_parser &cmd, client &c, std::string &reply) {
@@ -1433,7 +1461,6 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 }
 
 int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) {
-	// TODO : (maybe) handle wilrdcards, multiple nicknames
 	if (c.connection_not_registered()) {
 		reply = ":You have not registered";
 		return 451;
