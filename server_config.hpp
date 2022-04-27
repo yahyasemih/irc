@@ -24,6 +24,7 @@ private:
 	std::string server_name;
 	std::string server_info;
 	std::string server_motd;
+	std::string allowed_channels;
 	std::string version;
 	std::string user_modes;
 	std::string channel_modes;
@@ -39,6 +40,7 @@ public:
 	const std::string &get_server_name() const;
 	const std::string &get_server_info() const;
 	const std::string &get_server_motd() const;
+	const std::string &get_allowed_channels() const;
 	const std::string &get_version() const;
 	const std::string &get_user_modes() const;
 	const std::string &get_channel_modes() const;

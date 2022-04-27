@@ -536,7 +536,7 @@ int server::join_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 0; // No reply to send, already sent by channel
 	}
 	std::string chnl = cmd.get_args().at(0);
-	if (!std::regex_match(chnl, channel_rule)) {
+	if (!std::regex_match(chnl, channel_rule) || config.get_allowed_channels().find(chnl[0]) == std::string::npos) {
 		reply = chnl + " :No such channel";
 		return 403;
 	} else if (channels.find(chnl) == channels.end()) {
@@ -1389,7 +1389,7 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
    	}
 	std::string to_search = cmd.get_args().empty() ? "*" : cmd.get_args().at(0);
 	bool only_operator = cmd.get_args().size() == 2 && cmd.get_args().at(1) == "o";
-	if (std::string("#+&").find(to_search[0]) != std::string::npos) {
+	if (config.get_allowed_channels().find(to_search[0]) != std::string::npos) {
 		channel_map::iterator channel = channels.find(to_search);
 		if (channel != channels.end()) {
 			const std::set<client *> clients = channel->second.get_clients();

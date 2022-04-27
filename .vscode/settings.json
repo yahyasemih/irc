@@ -68,6 +68,8 @@
 		"unordered_set": "cpp",
 		"__functional_03": "cpp",
 		"queue": "cpp",
-		"fstream": "cpp"
+		"fstream": "cpp",
+		"iomanip": "cpp",
+		"stack": "cpp"
 	}
 }
