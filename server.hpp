@@ -46,7 +46,7 @@ private:
 	std::string start_time;
 	size_t num_users;
 
-	void welcome_client(const client &c) const;
+	void welcome_client(client &c);
 	void accept_client();
 	int receive_from_client(client &c);
 	std::string make_server_reply(int reply_code, const std::string &str, const client &c) const;

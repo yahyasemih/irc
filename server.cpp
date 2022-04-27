@@ -184,7 +184,7 @@ void server::stop() {
 	}
 }
 
-void server::welcome_client(const client &c) const {
+void server::welcome_client(client &c) {
 	std::string msg = make_server_reply(1, ":Welcome to the Internet Relay Network " + c.to_string(), c);
 	msg += make_server_reply(2, ":Your host is " + config.get_server_name() + ", running version "
 			+ config.get_version(), c);
@@ -193,6 +193,10 @@ void server::welcome_client(const client &c) const {
 			+ " " + config.get_channel_modes(), c);
 	msg += make_server_reply(251, ":There are " + std::to_string(num_users) + " users and 0 services on 1 servers", c);
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
+	std::string reply;
+	int reply_code = motd_cmd(command_parser("MOTD"), c, reply);
+	reply = make_server_reply(reply_code, reply, c);
+	send(c.get_fd(), reply.c_str(), reply.size(), 0);
 }
 
 void server::accept_client() {
@@ -334,8 +338,8 @@ int server::nick_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			if (!c.is_connected()) {
 				++num_users;
 				std::cout << "client connected" << std::endl;
-				welcome_client(c);
 				c.set_connected(true);
+				welcome_client(c);
 			}
 			return 0;
 		}
@@ -393,8 +397,8 @@ int server::user_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			if (!c.is_connected()) {
 				++num_users;
 				std::cout << "client connected" << std::endl;
-				welcome_client(c);
 				c.set_connected(true);
+				welcome_client(c);
 			}
 			return 0;
 		}
@@ -1490,19 +1494,17 @@ int server::motd_cmd(const command_parser &cmd, client &c, std::string &reply) {
    	} else if (cmd.get_args().size() > 1) {
    		reply = cmd.get_cmd() + " :Syntax error";
    		return 461;
-   	}
-	if (config.get_server_motd() == "") {
+   	} else if (config.get_server_motd().empty()) {
    		reply = ":MOTD File is missing";
 		return 422;
 	}
-	std::stringstream strStream;
-	strStream.str(config.get_server_motd());
-	std::string line, msg = ":" + config.get_server_name() + " 375 " + c.get_nickname() + " ";
-	msg += ":- " + config.get_server_name() + " Message of the day - \r\n";
+	std::stringstream str_stream;
+	str_stream.str(config.get_server_motd());
+	std::string line;
+	std::string msg = make_server_reply(375, ":- " + config.get_server_name() + " Message of the day - ", c);
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
-	while (std::getline(strStream, line)) {
-		msg = ":" + config.get_server_name() + "372" + c.get_nickname() + " ";
-		msg += ":- " + line + "\r\n";
+	while (std::getline(str_stream, line)) {
+		msg = make_server_reply(372, ":- " + line, c);
 		send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	}
 	reply = ":End of MOTD command";
