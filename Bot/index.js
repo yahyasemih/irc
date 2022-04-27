@@ -57,3 +57,7 @@ client.addListener("invite", function (channel, from, message) {
   }
   channels.add(channel);
 });
+
+client.addListener("error", function(message) {
+  console.log("Got error from server (" + message.rawCommand + "): " + message.command);
+});
