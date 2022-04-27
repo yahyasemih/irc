@@ -1,4 +1,3 @@
-- implement WHO (important)
 - improve quality of code (duplicated codes, non readable code, ...) (less important)
 - resolve TODOs in files (important)
 - improve ban/exception list for channel modes for handling regex (maybe)
