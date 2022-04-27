@@ -27,6 +27,7 @@ server::command_map server::init_map() {
 	map.insert(std::make_pair("who", WHO));
 	map.insert(std::make_pair("whois", WHOIS));
 	map.insert(std::make_pair("ison", ISON));
+	map.insert(std::make_pair("motd", MOTD));
 
 	return map;
 }
@@ -60,7 +61,8 @@ const server::command_function server::command_functions[INVALID_CMD] = {
 	&server::pong_cmd,
 	&server::who_cmd,
 	&server::whois_cmd,
-	&server::ison_cmd
+	&server::ison_cmd,
+	&server::motd_cmd
 };
 
 server::server(int port, std::string password) : num_users(0) {
@@ -1479,4 +1481,30 @@ int server::ison_cmd(const command_parser &cmd, client &, std::string &reply) {
 		}
 	}
 	return 303;
+}
+
+int server::motd_cmd(const command_parser &cmd, client &c, std::string &reply) {
+   	if (c.connection_not_registered()) {
+   		reply = ":You have not registered";
+   		return 451;
+   	} else if (cmd.get_args().size() > 1) {
+   		reply = cmd.get_cmd() + " :Syntax error";
+   		return 461;
+   	}
+	if (config.get_server_motd() == "") {
+   		reply = ":MOTD File is missing";
+		return 422;
+	}
+	std::stringstream strStream;
+	strStream.str(config.get_server_motd());
+	std::string line, msg = ":" + config.get_server_name() + " 375 " + c.get_nickname() + " ";
+	msg += ":- " + config.get_server_name() + " Message of the day - \r\n";
+	send(c.get_fd(), msg.c_str(), msg.size(), 0);
+	while (std::getline(strStream, line)) {
+		msg = ":" + config.get_server_name() + "372" + c.get_nickname() + " ";
+		msg += ":- " + line + "\r\n";
+		send(c.get_fd(), msg.c_str(), msg.size(), 0);
+	}
+	reply = ":End of MOTD command";
+	return 376;
 }

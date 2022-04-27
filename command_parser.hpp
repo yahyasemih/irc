@@ -30,6 +30,7 @@ enum command_type {
 	WHO,
 	WHOIS,
 	ISON,
+	MOTD,
 	INVALID_CMD
 };
 

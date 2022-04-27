@@ -8,7 +8,7 @@ const std::string server_config::configs_dir = "./config";
 server_config::server_config() :
 		server_name("irc.1337.ma"),
 		server_info("This an IRC server made in 1337 school"),
-		server_motd("Welcome"),
+		server_motd(""),
 		version("leet-irc 1.0.0"),
 		user_modes("aioOrsw"),
 		channel_modes("aovimntklbeI") {
