@@ -74,6 +74,7 @@ server::server(int port, std::string password) : num_users(0) {
 	}
 	fd = socket(AF_INET, SOCK_STREAM, protocol->p_proto);
 	if (fd < 0) {
+		perror("Socket creation failed : ");
 		throw std::runtime_error("Socket creation failed");
 	}
 	int options = 1;
@@ -89,7 +90,8 @@ server::server(int port, std::string password) : num_users(0) {
 		perror("Binding failed : ");
 		throw std::runtime_error("Binding failed");
 	}
-	if (listen(fd, 3) < 0) {
+	if (listen(fd, 100) < 0) {
+		perror("Listening failed : ");
 		throw std::runtime_error("Listening failed");
 	}
 	pollfd pf;
