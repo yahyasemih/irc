@@ -1,7 +1,4 @@
 #include "irc.hpp"
-#include "server.hpp"
-
-#include <signal.h>
 
 server *s_ptr = nullptr;
 
