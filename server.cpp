@@ -1375,9 +1375,6 @@ int server::pong_cmd(const command_parser &cmd, client &c, std::string &reply) {
 static bool match_name(std::string &r, const std::string &name) {
 	size_t i, j = 0;
 	bool escape = false;
-	if (r == "0") {
-		r = "*";
-	}
 	for (i = 0; r[i] != '\0'; i++) {
 		if (r[i] == '\\') {
 			escape = true;
@@ -1399,6 +1396,8 @@ static bool match_name(std::string &r, const std::string &name) {
 }
 
 static bool have_common_channel(client *c1, client *c2, std::unordered_map<std::string, channel> channels) {
+	if (c1->get_nickname() == c2->get_nickname())
+		return false;
 	for (std::unordered_map<std::string, channel>::iterator it = channels.begin(); it != channels.end(); ++it) {
 		if (it->second.is_in_channel(c1) && it->second.is_in_channel(c2))
 			return true;
@@ -1414,7 +1413,7 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
    		reply = cmd.get_cmd() + " :Syntax error";
    		return 461;
    	}
-	std::string to_search = cmd.get_args().empty() ? "*" : cmd.get_args().at(0);
+	std::string to_search = cmd.get_args().empty() ? "*" : cmd.get_args().at(0) == "0" ? "*" : cmd.get_args().at(0);
 	bool only_operator = cmd.get_args().size() == 2 && cmd.get_args().at(1) == "o";
 	if (config.get_allowed_channels().find(to_search[0]) != std::string::npos) {
 		channel_map::iterator channel = channels.find(to_search);
@@ -1441,7 +1440,7 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 				|| match_name(to_search, it->second.get_nickname())) {
 				if (it->second.has_mode('i')
 					|| (only_operator && !it->second.is_oper())
-					|| have_common_channel(&c, &(it->second), channels)) {
+					|| (to_search == "*" && have_common_channel(&c, &(it->second), channels))) {
 					continue;
 				}
 				std::string msg = ":" + config.get_server_name() + " 352 " + c.get_nickname() + " ";
