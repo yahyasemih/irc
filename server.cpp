@@ -1331,7 +1331,7 @@ int server::notice_cmd(const command_parser &cmd, client &c, std::string &) {
 		channel_map::iterator channels_it = channels.find(receiver);
 		if (nicks_it != nick_to_fd.cend() || channels_it != channels.end()) {
 			std::string msg;
-			if (channels_it->second.is_anonymous()) {
+			if (channels_it != channels.end() && channels_it->second.is_anonymous()) {
 				msg = ":anonymous!anonymous@anonymous";
 			} else {
 				msg = ":" + c.to_string();
