@@ -127,7 +127,6 @@ void server::start() {
 						while (c.has_command()) {
 							std::string reply;
 							std::string command = c.get_command();
-							std::cout << "Received command '" << command << "' from client " << c.get_fd() << std::endl;
 							int reply_code = handle_command(command, c, reply);
 							if (reply_code == -1) {
 								std::string final_reply = "ERROR " + reply + "\r\n";
