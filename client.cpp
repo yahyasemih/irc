@@ -39,6 +39,11 @@ std::string client::get_command() {
 }
 
 void client::set_oper(bool oper) {
+	if (oper) {
+		add_mode('o');
+	} else {
+		remove_mode('o');
+	}
 	this->oper = oper;
 }
 
