@@ -80,8 +80,7 @@ async function is_available_cmd(cl, ch, login) {
         cl.say(ch, message);
       })
       .catch((err) => {
-        const message = "Login '" + login + "' does not exist";
-        cl.say(ch, message);
+        cl.say(ch, err);
       });
   }
 }
