@@ -1243,14 +1243,14 @@ int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) 
 	if (cmd.get_args().empty()) {
 		for (channel_map::const_iterator entry = channels.cbegin(); entry != channels.cend(); ++entry) {
 			if (!entry->second.is_anonymous()) {
-				msg = ":" + server + " 353 " + nick + " = " + entry->first + " :" + entry->second.to_string() + "\r\n";
+				msg += make_server_reply(353, "= " + entry->first + " :" + entry->second.to_string(), c);
 			}
 		}
 		std::string without_channel = get_clients_without_channel();
 		if (!without_channel.empty()) {
-			msg += ":" + server + " 353 " + nick + " * * :" + without_channel + "\r\n";
+			msg += make_server_reply(353, "* * :" + without_channel, c);
 		}
-		msg += ":" + server + " 366 " + nick + " * :End of NAMES list\r\n";
+		msg += make_server_reply(366, "* :End of NAMES list", c);
 	} else {
 		std::string channel = cmd.get_args().at(0);
 		std::vector<std::string> channels;
@@ -1277,7 +1277,7 @@ int server::names_cmd(const command_parser &cmd, client &c, std::string &reply) 
 				msg += "\r\n";
 			}
 		}
-		msg += ":" + server + " 366 " + nick + " " + channel + " :End of NAMES list\r\n";
+		msg += make_server_reply(366, channel + " :End of NAMES list", c);
 	}
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	return 0;
@@ -1292,8 +1292,6 @@ int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		return 461;
 	}
 	std::string msg;
-	const std::string &server = config.get_server_name();
-	const std::string &nick = c.get_nickname();
 	if (cmd.get_args().size() == 1) {
 		std::string channel = cmd.get_args().at(0);
 		std::vector<std::string> channels;
@@ -1311,17 +1309,17 @@ int server::list_cmd(const command_parser &cmd, client &c, std::string &reply) {
 		for (size_t i = 0; i < channels.size(); ++i) {
 			channel_map::iterator it = this->channels.find(channels[i]);
 			if (it != this->channels.end()) {
-				msg += ":" + server + " 322 " + nick + " " + channels[i] + " " + std::to_string(it->second.size());
-				msg += " :" + it->second.get_topic() + "\r\n";
+				msg += make_server_reply(322, channels[i] + " " + std::to_string(it->second.size()) + " :"
+						+ it->second.get_topic(), c);
 			}
 		}
 	} else {
 		for (channel_map::iterator it = this->channels.begin(); it != this->channels.end(); ++it) {
-			msg += ":" + server + " 322 " + nick + " " + it->first + " " + std::to_string(it->second.size());
-			msg += " :" + it->second.get_topic() + "\r\n";
+			msg += make_server_reply(322, it->first + " " + std::to_string(it->second.size()) + " :"
+					+ it->second.get_topic(), c);
 		}
 	}
-	msg += ":" + server + " 323 " + nick + " :End of LIST\r\n";
+	msg += make_server_reply(323, ":End of LIST", c);
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	return 0;
 }
@@ -1475,10 +1473,9 @@ int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) 
 		return 318;
 	}
 	client &c2 = clients.find(nick_to_fd[nickname])->second;
-	std::string msg = ":" + config.get_server_name() + " 311 " + c.get_nickname() + " " + nickname + " ~"
-			+ c2.get_username() + " " + c2.get_host() + " * :" + c2.get_realname() + "\r\n";
-	msg += ":" + config.get_server_name() + " 312 " + c.get_nickname() + " " + nickname + " " + config.get_server_name()
-			+ " :" + config.get_server_info() + "\r\n";
+	std::string msg = make_server_reply(311, nickname + " ~" + c2.get_username() + " " + c2.get_host() + " * :"
+			+ c2.get_realname(), c);
+	msg += make_server_reply(312, nickname + " " + config.get_server_name() + " :" + config.get_server_info(), c);
 	std::string chans;
 	for (channel_map::iterator it = channels.begin(); it != channels.end(); ++it) {
 		if (!it->second.is_anonymous() && it->second.is_in_channel(&c2)) {
@@ -1486,15 +1483,13 @@ int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) 
 		}
 	}
 	if (!chans.empty()) {
-		msg += ":" + config.get_server_name() + " 319 " + c.get_nickname() + " " + nickname + " :" + chans + "\r\n";
+		msg += make_server_reply(319, nickname + " :" + chans, c);
 	}
 	if (c2.is_oper()) {
-		msg += ":" + config.get_server_name() + " 313 " + c.get_nickname() + " " + nickname + " :is an IRC operator\r\n";
+		msg += make_server_reply(313, nickname + " :is an IRC operator", c);
 	}
-	msg += ":" + config.get_server_name() + " 378 " + c.get_nickname() + " " + nickname + " :is connecting from *@"
-			+ c2.get_host() + " " + c2.get_host() + "\r\n";
-	msg += ":" + config.get_server_name() + " 379 " + c.get_nickname() + " " + nickname + " :is using mode "
-			+ c2.get_mode() + "\r\n";
+	msg += make_server_reply(378, nickname + " :is connecting from *@" + c2.get_host() + " " + c2.get_host(), c);
+	msg += make_server_reply(379, nickname + " :is using mode " + c2.get_mode(), c);
 	send(c.get_fd(), msg.c_str(), msg.size(), 0);
 	reply = nickname + " :End of WHOIS list";
 	return 318;
