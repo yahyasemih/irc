@@ -1457,7 +1457,7 @@ int server::who_cmd(const command_parser &cmd, client &c, std::string &reply) {
 			}
 		}
 	}
-	reply = to_search + ":End of WHO list";
+	reply = to_search + " :End of WHO list";
 	return 315;
 }
 
@@ -1479,6 +1479,7 @@ int server::whois_cmd(const command_parser &cmd, client &c, std::string &reply) 
 	std::string msg = make_server_reply(311, nickname + " ~" + c2.get_username() + " " + c2.get_host() + " * :"
 			+ c2.get_realname(), c);
 	msg += make_server_reply(312, nickname + " " + config.get_server_name() + " :" + config.get_server_info(), c);
+	msg += make_server_reply(301, nickname + " :" + c2.get_away_msg(), c);
 	std::string chans;
 	for (channel_map::iterator it = channels.begin(); it != channels.end(); ++it) {
 		if (!it->second.is_anonymous() && it->second.is_in_channel(&c2)) {
