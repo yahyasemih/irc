@@ -4,14 +4,14 @@ const fetchData = require("./42api");
 async function help_cmd(cl, ch) {
   const message = `
   Available commands :
-      !part            : leave the current channel
-      !time            : gives the current time
-      !help            : display this message
-      !meteo           : display the meteo of a city (usage !meteo 'city')
-      !ft_is_available : display the user if it's avilable in the cluster (usage !ft_is_available 'login')
-      !ft_points       : display the point for the user (usage !ft_points 'login')
-      !ft_wallet       : display the wallet for the user (usage !ft_wallet 'login')
-      !ft_cursus_info  : display the user levels infos (usage !ft_cursus_info 'login')`;
+    !part            : leave the current channel
+    !time            : give the current time
+    !help            : display this message
+    !meteo           : display the meteo of a city (usage !meteo 'city')
+    !ft_is_available : display availability of the user (usage !ft_is_available 'login')
+    !ft_points       : display the correction points of the user (usage !ft_points 'login')
+    !ft_wallet       : display the wallet for the user (usage !ft_wallet 'login')
+    !ft_cursus_info  : display the user levels infos (usage !ft_cursus_info 'login')`;
   await cl.say(ch, message);
 }
 
