@@ -491,6 +491,10 @@ int server::privmsg_cmd(const command_parser &cmd, client &c, std::string &reply
 				}
 			} else {
 				client &c2 = clients.find(nicks_it->second)->second;
+				if (!c2.is_connected()) {
+					reply = receiver + " :No such nick or channel name";
+					return 401;
+				}
 				send(c2.get_fd(), msg.c_str(), msg.size(), 0);
 				if (c2.is_away()) {
 					reply = receiver + " :" + c2.get_away_msg();
@@ -1341,7 +1345,8 @@ int server::notice_cmd(const command_parser &cmd, client &c, std::string &) {
 				if (channels_it->second.can_speak(&c)) {
 					channels_it->second.send_message(msg, &c);
 				}
-			} else {
+			} else if (clients.find(nicks_it->second) != clients.end()
+					&& clients.find(nicks_it->second)->second.is_connected()) {
 				send(nicks_it->second, msg.c_str(), msg.size(), 0);
 			}
 			return 0;
