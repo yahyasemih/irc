@@ -718,7 +718,7 @@ int server::topic_cmd(const command_parser &cmd, client &c, std::string &reply) 
 		reply = cmd.get_cmd() + " :Syntax error";
 		return 461;
 	} else {
-		std::string topic = cmd.get_args().at(1);
+		std::string topic = cmd.get_args().size() == 2 ? cmd.get_args().at(1) : "";
 		const std::string chnl = cmd.get_args().at(0);
 		if (channels.find(chnl) == channels.end()) {
 			reply = chnl + " :No such chnl";
